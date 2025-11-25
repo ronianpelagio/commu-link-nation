@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send, UserPlus } from 'lucide-react';
+import { ArrowLeft, Send, UserPlus, Image, Video } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Friend {
@@ -25,6 +25,8 @@ interface Message {
   content: string;
   sender_id: string;
   created_at: string;
+  media_url: string | null;
+  media_type: string | null;
 }
 
 const Messages = () => {
@@ -35,6 +37,10 @@ const Messages = () => {
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -116,20 +122,95 @@ const Messages = () => {
     setMessages(data);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      toast({
+        title: 'File too large',
+        description: 'Maximum file size is 50MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const allowedTypes = ['image/', 'video/'];
+    if (!allowedTypes.some(type => file.type.startsWith(type))) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Only images and videos are allowed',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setMediaFile(file);
+  };
+
+  const uploadMedia = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('message-media')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('message-media')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({
+        title: 'Upload Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedFriend) return;
+    if ((!newMessage.trim() && !mediaFile) || !selectedFriend || isSending) return;
 
+    setIsSending(true);
     try {
+      let mediaUrl = null;
+      let mediaType = null;
+
+      if (mediaFile) {
+        mediaUrl = await uploadMedia(mediaFile);
+        if (!mediaUrl) {
+          setIsSending(false);
+          return;
+        }
+        mediaType = mediaFile.type.startsWith('image/') ? 'image' : 'video';
+      }
+
       const { error } = await supabase.from('messages').insert({
         sender_id: user?.id,
         receiver_id: selectedFriend.profiles.id,
-        content: newMessage,
+        content: newMessage.trim() || (mediaType === 'image' ? 'Sent an image' : 'Sent a video'),
+        media_url: mediaUrl,
+        media_type: mediaType,
       });
 
       if (error) throw error;
 
       setNewMessage('');
+      setMediaFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       fetchMessages();
     } catch (error: any) {
       toast({
@@ -137,6 +218,8 @@ const Messages = () => {
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -217,6 +300,23 @@ const Messages = () => {
                             : 'bg-muted'
                         }`}
                       >
+                        {message.media_url && (
+                          <div className="mb-2">
+                            {message.media_type === 'image' ? (
+                              <img
+                                src={message.media_url}
+                                alt="Shared media"
+                                className="rounded max-w-full h-auto max-h-64 object-cover"
+                              />
+                            ) : (
+                              <video
+                                src={message.media_url}
+                                controls
+                                className="rounded max-w-full h-auto max-h-64"
+                              />
+                            )}
+                          </div>
+                        )}
                         <p className="text-sm">{message.content}</p>
                         <p className="text-xs opacity-70 mt-1">
                           {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
@@ -226,16 +326,56 @@ const Messages = () => {
                   ))}
                 </CardContent>
                 <CardContent className="border-t p-4">
-                  <form onSubmit={handleSendMessage} className="flex gap-2">
-                    <Input
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type a message..."
-                      className="flex-1"
-                    />
-                    <Button type="submit" size="icon">
-                      <Send className="h-4 w-4" />
-                    </Button>
+                  <form onSubmit={handleSendMessage} className="space-y-2">
+                    {mediaFile && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-2 rounded">
+                        {mediaFile.type.startsWith('image/') ? (
+                          <Image className="h-4 w-4" />
+                        ) : (
+                          <Video className="h-4 w-4" />
+                        )}
+                        <span className="flex-1 truncate">{mediaFile.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setMediaFile(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,video/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isSending || isUploading}
+                      >
+                        <Image className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1"
+                        disabled={isSending || isUploading}
+                      />
+                      <Button type="submit" size="icon" disabled={isSending || isUploading}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </form>
                 </CardContent>
               </>

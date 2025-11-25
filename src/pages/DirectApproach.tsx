@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Image, Video } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Approach {
@@ -19,6 +19,8 @@ interface Approach {
   status: string;
   admin_response: string | null;
   created_at: string;
+  media_url: string | null;
+  media_type: string | null;
 }
 
 const DirectApproach = () => {
@@ -28,6 +30,9 @@ const DirectApproach = () => {
   const [approaches, setApproaches] = useState<Approach[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -67,6 +72,62 @@ const DirectApproach = () => {
     setApproaches(data);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      toast({
+        title: 'File too large',
+        description: 'Maximum file size is 50MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const allowedTypes = ['image/', 'video/'];
+    if (!allowedTypes.some(type => file.type.startsWith(type))) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Only images and videos are allowed',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setMediaFile(file);
+  };
+
+  const uploadMedia = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('approach-media')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('approach-media')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({
+        title: 'Upload Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -76,11 +137,25 @@ const DirectApproach = () => {
     const message = formData.get('message') as string;
 
     try {
+      let mediaUrl = null;
+      let mediaType = null;
+
+      if (mediaFile) {
+        mediaUrl = await uploadMedia(mediaFile);
+        if (!mediaUrl) {
+          setIsSubmitting(false);
+          return;
+        }
+        mediaType = mediaFile.type.startsWith('image/') ? 'image' : 'video';
+      }
+
       const { error } = await supabase.from('direct_approaches').insert({
         user_id: user?.id,
         subject,
         message,
         status: 'open',
+        media_url: mediaUrl,
+        media_type: mediaType,
       });
 
       if (error) throw error;
@@ -90,6 +165,10 @@ const DirectApproach = () => {
         description: 'Barangay officials will respond soon.',
       });
       setShowForm(false);
+      setMediaFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -163,8 +242,49 @@ const DirectApproach = () => {
                     className="min-h-[150px]"
                   />
                 </div>
-                <Button type="submit" disabled={isSubmitting} className="w-full">
-                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                <div className="space-y-2">
+                  <Label>Attach Image or Video (Optional)</Label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {mediaFile ? (
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                      {mediaFile.type.startsWith('image/') ? (
+                        <Image className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <Video className="h-5 w-5 text-muted-foreground" />
+                      )}
+                      <span className="flex-1 truncate text-sm">{mediaFile.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setMediaFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full"
+                    >
+                      <Image className="h-4 w-4 mr-2" />
+                      Choose File
+                    </Button>
+                  )}
+                </div>
+                <Button type="submit" disabled={isSubmitting || isUploading} className="w-full">
+                  {isSubmitting || isUploading ? 'Submitting...' : 'Submit Request'}
                 </Button>
               </form>
             </CardContent>
@@ -200,6 +320,23 @@ const DirectApproach = () => {
                     <p className="text-sm font-medium mb-1">Your Request:</p>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">{approach.message}</p>
                   </div>
+                  {approach.media_url && (
+                    <div>
+                      {approach.media_type === 'image' ? (
+                        <img
+                          src={approach.media_url}
+                          alt="Attached media"
+                          className="rounded-lg max-w-full h-auto max-h-64 object-cover"
+                        />
+                      ) : (
+                        <video
+                          src={approach.media_url}
+                          controls
+                          className="rounded-lg max-w-full h-auto max-h-64"
+                        />
+                      )}
+                    </div>
+                  )}
                   {approach.admin_response && (
                     <div className="border-t pt-4">
                       <p className="text-sm font-medium mb-1 text-primary">Barangay Response:</p>

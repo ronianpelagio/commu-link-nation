@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, MapPin, DollarSign, Check } from 'lucide-react';
+import { ArrowLeft, Plus, MapPin, DollarSign, Check, Navigation } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface Task {
   id: string;
@@ -36,7 +39,11 @@ const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -216,6 +223,67 @@ const Tasks = () => {
     }
   };
 
+  const openTaskMap = (task: Task) => {
+    setSelectedTask(task);
+    setMapDialogOpen(true);
+    
+    setTimeout(() => {
+      if (!mapContainer.current || !task.location_lat || !task.location_lng) return;
+      
+      const mapboxToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+      if (!mapboxToken) {
+        toast({
+          title: 'Map Error',
+          description: 'Map service is not configured.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      mapboxgl.accessToken = mapboxToken;
+      
+      if (map.current) {
+        map.current.remove();
+      }
+
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [task.location_lng, task.location_lat],
+        zoom: 15,
+      });
+
+      new mapboxgl.Marker({ color: '#ff4444' })
+        .setLngLat([task.location_lng, task.location_lat])
+        .setPopup(new mapboxgl.Popup().setHTML(`<strong>${task.title}</strong>`))
+        .addTo(map.current);
+
+      if (userLocation) {
+        new mapboxgl.Marker({ color: '#4444ff' })
+          .setLngLat([userLocation.lng, userLocation.lat])
+          .setPopup(new mapboxgl.Popup().setHTML('<strong>Your Location</strong>'))
+          .addTo(map.current);
+      }
+
+      map.current.addControl(new mapboxgl.NavigationControl());
+    }, 100);
+  };
+
+  const getDirections = (task: Task) => {
+    if (!task.location_lat || !task.location_lng) return;
+    if (userLocation) {
+      window.open(
+        `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${task.location_lat},${task.location_lng}`,
+        '_blank'
+      );
+    } else {
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${task.location_lat},${task.location_lng}`,
+        '_blank'
+      );
+    }
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (!user) return null;
 
@@ -305,11 +373,20 @@ const Tasks = () => {
             tasks.map((task) => (
               <Card key={task.id} className="shadow-soft hover:shadow-medium transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-lg">{task.title}</CardTitle>
-                  <CardDescription>
-                    Posted by {task.profiles.full_name} •{' '}
-                    {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-                  </CardDescription>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">{task.title}</CardTitle>
+                      <CardDescription>
+                        Posted by {task.profiles.full_name} •{' '}
+                        {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+                      </CardDescription>
+                    </div>
+                    {task.status === 'in_progress' && (
+                      <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
+                        Pending Task
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm">{task.description}</p>
@@ -319,9 +396,33 @@ const Tasks = () => {
                     </div>
                   )}
                   {task.location_address && (
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      {task.location_address}
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {task.location_address}
+                      </div>
+                      {task.location_lat && task.location_lng && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openTaskMap(task)}
+                            className="flex-1"
+                          >
+                            <MapPin className="h-3 w-3 mr-1" />
+                            View Map
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => getDirections(task)}
+                            className="flex-1"
+                          >
+                            <Navigation className="h-3 w-3 mr-1" />
+                            Get Directions
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="pt-2">
@@ -353,6 +454,16 @@ const Tasks = () => {
           )}
         </div>
       </div>
+
+      <Dialog open={mapDialogOpen} onOpenChange={setMapDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{selectedTask?.title}</DialogTitle>
+            <DialogDescription>{selectedTask?.location_address}</DialogDescription>
+          </DialogHeader>
+          <div ref={mapContainer} className="w-full h-[500px] rounded-lg" />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
