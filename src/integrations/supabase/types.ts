@@ -19,6 +19,8 @@ export type Database = {
           admin_response: string | null
           created_at: string
           id: string
+          media_type: string | null
+          media_url: string | null
           message: string
           status: Database["public"]["Enums"]["approach_status"]
           subject: string
@@ -29,6 +31,8 @@ export type Database = {
           admin_response?: string | null
           created_at?: string
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message: string
           status?: Database["public"]["Enums"]["approach_status"]
           subject: string
@@ -39,6 +43,8 @@ export type Database = {
           admin_response?: string | null
           created_at?: string
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message?: string
           status?: Database["public"]["Enums"]["approach_status"]
           subject?: string
@@ -99,6 +105,8 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          media_type: string | null
+          media_url: string | null
           read: boolean
           receiver_id: string
           sender_id: string
@@ -107,6 +115,8 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           read?: boolean
           receiver_id: string
           sender_id: string
@@ -115,6 +125,8 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           read?: boolean
           receiver_id?: string
           sender_id?: string
