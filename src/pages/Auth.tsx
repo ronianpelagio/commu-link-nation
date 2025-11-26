@@ -15,7 +15,6 @@ const Auth = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate('/dashboard');
@@ -28,30 +27,28 @@ const Auth = () => {
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
 
-      if (error) throw error;
-
-      toast({
-        title: 'Welcome back!',
-        description: 'Successfully signed in.',
-      });
-      navigate('/dashboard');
-    } catch (error: any) {
+    if (error) {
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
+    } else {
+      toast({
+        title: 'Check your email!',
+        description: 'We sent you a login code.',
+      });
     }
+
+    setIsLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -60,41 +57,36 @@ const Auth = () => {
 
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
     const contactNumber = formData.get('contactNumber') as string;
     const address = formData.get('address') as string;
 
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: {
-            full_name: fullName,
-            contact_number: contactNumber,
-            address: address,
-          },
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+        data: {
+          full_name: fullName,
+          contact_number: contactNumber,
+          address: address,
         },
-      });
+      },
+    });
 
-      if (error) throw error;
-
-      toast({
-        title: 'Account created!',
-        description: 'Welcome to Barangay Connect.',
-      });
-      navigate('/dashboard');
-    } catch (error: any) {
+    if (error) {
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
+    } else {
+      toast({
+        title: 'Check your email!',
+        description: 'We sent you a verification code.',
+      });
     }
+
+    setIsLoading(false);
   };
 
   return (
@@ -127,18 +119,12 @@ const Auth = () => {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    name="password"
-                    type="password"
-                    required
-                  />
-                </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+                  {isLoading ? 'Sending code...' : 'Send Login Code'}
                 </Button>
+                <p className="text-sm text-muted-foreground text-center">
+                  We'll send a one-time code to your email
+                </p>
               </form>
             </TabsContent>
 
@@ -182,18 +168,12 @@ const Auth = () => {
                     placeholder="Your address"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    name="password"
-                    type="password"
-                    required
-                  />
-                </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Creating account...' : 'Create Account'}
+                  {isLoading ? 'Sending code...' : 'Send Verification Code'}
                 </Button>
+                <p className="text-sm text-muted-foreground text-center">
+                  We'll send a one-time code to verify your email
+                </p>
               </form>
             </TabsContent>
           </Tabs>

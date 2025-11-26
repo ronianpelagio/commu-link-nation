@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { LogOut, Home, ClipboardList, MessageCircle, Phone } from 'lucide-react';
 import CommunityFeed from '@/components/dashboard/CommunityFeed';
+import { SignOutDialog } from '@/components/SignOutDialog';
 
 const Dashboard = () => {
   const { user, isAdmin, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -40,13 +42,19 @@ const Dashboard = () => {
                   Admin Panel
                 </Button>
               )}
-              <Button variant="outline" size="icon" onClick={signOut}>
+              <Button variant="outline" size="icon" onClick={() => setShowSignOutDialog(true)}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </div>
       </header>
+
+      <SignOutDialog
+        open={showSignOutDialog}
+        onOpenChange={setShowSignOutDialog}
+        onConfirm={() => signOut(true)}
+      />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">

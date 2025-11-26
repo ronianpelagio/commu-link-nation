@@ -16,6 +16,7 @@ interface Profile {
   contact_number: string | null;
   address: string | null;
   avatar_url: string | null;
+  skills: string[] | null;
 }
 
 const Profile = () => {
@@ -25,6 +26,7 @@ const Profile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [skillInput, setSkillInput] = useState('');
 
   useEffect(() => {
     if (!loading && !user) {
@@ -98,6 +100,7 @@ const Profile = () => {
           contact_number: contactNumber,
           address: address,
           avatar_url: avatarUrl,
+          skills: profile?.skills || [],
         })
         .eq('id', user?.id);
 
@@ -210,6 +213,63 @@ const Profile = () => {
                   <Label>Email</Label>
                   <Input value={user.email || ''} disabled />
                   <p className="text-sm text-muted-foreground">Email cannot be changed</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Skills</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      placeholder="Add a skill"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (skillInput.trim()) {
+                            setProfile(prev => prev ? {
+                              ...prev,
+                              skills: [...(prev.skills || []), skillInput.trim()]
+                            } : null);
+                            setSkillInput('');
+                          }
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (skillInput.trim()) {
+                          setProfile(prev => prev ? {
+                            ...prev,
+                            skills: [...(prev.skills || []), skillInput.trim()]
+                          } : null);
+                          setSkillInput('');
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {profile?.skills?.map((skill, index) => (
+                      <div key={index} className="bg-secondary px-3 py-1 rounded-full flex items-center gap-2">
+                        <span className="text-sm">{skill}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfile(prev => prev ? {
+                              ...prev,
+                              skills: prev.skills?.filter((_, i) => i !== index) || []
+                            } : null);
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 

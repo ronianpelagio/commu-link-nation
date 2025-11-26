@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      approach_messages: {
+        Row: {
+          approach_id: string
+          content: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          approach_id: string
+          content: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          approach_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approach_messages_approach_id_fkey"
+            columns: ["approach_id"]
+            isOneToOne: false
+            referencedRelation: "direct_approaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direct_approaches: {
         Row: {
           admin_response: string | null
@@ -148,12 +180,74 @@ export type Database = {
           },
         ]
       }
+      post_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           content: string
           created_at: string
           id: string
           image_url: string | null
+          media_type: string | null
           status: Database["public"]["Enums"]["post_status"]
           updated_at: string
           user_id: string
@@ -163,6 +257,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          media_type?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           updated_at?: string
           user_id: string
@@ -172,6 +267,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          media_type?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           updated_at?: string
           user_id?: string
@@ -194,6 +290,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          skills: string[] | null
           updated_at: string
         }
         Insert: {
@@ -203,6 +300,7 @@ export type Database = {
           created_at?: string
           full_name: string
           id: string
+          skills?: string[] | null
           updated_at?: string
         }
         Update: {
@@ -212,9 +310,48 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          skills?: string[] | null
           updated_at?: string
         }
         Relationships: []
+      }
+      task_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          rated_user_id: string
+          rater_id: string
+          rating: number
+          task_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rated_user_id: string
+          rater_id: string
+          rating: number
+          task_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rated_user_id?: string
+          rater_id?: string
+          rating?: number
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_ratings_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {

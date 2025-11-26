@@ -2,19 +2,23 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Send } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Plus, Image, Video } from 'lucide-react';
+import { PostCard } from './PostCard';
 
 interface Post {
   id: string;
   content: string;
   image_url: string | null;
+  media_type: string | null;
   created_at: string;
   profiles: {
     full_name: string;
+    avatar_url: string | null;
   };
 }
 
@@ -23,13 +27,13 @@ const CommunityFeed = () => {
   const [newPost, setNewPost] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [showNewPost, setShowNewPost] = useState(false);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchPosts();
     
-    // Subscribe to new posts
     const channel = supabase
       .channel('posts-changes')
       .on(
@@ -54,12 +58,10 @@ const CommunityFeed = () => {
     const { data, error } = await supabase
       .from('posts')
       .select(`
-        id,
-        content,
-        image_url,
-        created_at,
+        *,
         profiles (
-          full_name
+          full_name,
+          avatar_url
         )
       `)
       .eq('status', 'approved')
@@ -73,17 +75,73 @@ const CommunityFeed = () => {
     setPosts(data as Post[]);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const maxSize = 50 * 1024 * 1024;
+      
+      if (file.size > maxSize) {
+        toast({
+          title: 'Error',
+          description: 'File size must be less than 50MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        toast({
+          title: 'Error',
+          description: 'Only images and videos are allowed',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setMediaFile(file);
+    }
+  };
+
+  const uploadMedia = async () => {
+    if (!mediaFile || !user) return null;
+
+    const fileExt = mediaFile.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('message-media')
+      .upload(fileName, mediaFile);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from('message-media').getPublicUrl(fileName);
+    return { url: data.publicUrl, type: mediaFile.type };
+  };
+
   const handleCreatePost = async () => {
     if (!newPost.trim()) return;
 
     setIsPosting(true);
     try {
+      let mediaUrl = null;
+      let mediaType = null;
+
+      if (mediaFile) {
+        const media = await uploadMedia();
+        if (media) {
+          mediaUrl = media.url;
+          mediaType = media.type;
+        }
+      }
+
       const { error } = await supabase
         .from('posts')
         .insert({
           user_id: user?.id,
           content: newPost,
           status: 'pending',
+          image_url: mediaUrl,
+          media_type: mediaType,
         });
 
       if (error) throw error;
@@ -93,6 +151,7 @@ const CommunityFeed = () => {
         description: 'Your post is pending approval from barangay officials.',
       });
       setNewPost('');
+      setMediaFile(null);
       setShowNewPost(false);
     } catch (error: any) {
       toast({
@@ -107,7 +166,6 @@ const CommunityFeed = () => {
 
   return (
     <div className="space-y-6">
-      {/* Create Post Card */}
       <Card className="shadow-soft">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -130,12 +188,44 @@ const CommunityFeed = () => {
               onChange={(e) => setNewPost(e.target.value)}
               className="min-h-[100px]"
             />
+            <div className="space-y-2">
+              <Label>Attach Media (optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="media"
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Label htmlFor="media" className="cursor-pointer flex-1">
+                  <Button type="button" variant="outline" className="w-full" asChild>
+                    <span>
+                      {mediaFile?.type.startsWith('video/') ? (
+                        <Video className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Image className="h-4 w-4 mr-2" />
+                      )}
+                      {mediaFile ? mediaFile.name : 'Attach Image/Video'}
+                    </span>
+                  </Button>
+                </Label>
+                {mediaFile && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMediaFile(null)}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
             <Button
               onClick={handleCreatePost}
               disabled={isPosting || !newPost.trim()}
               className="w-full"
             >
-              <Send className="h-4 w-4 mr-2" />
               {isPosting ? 'Posting...' : 'Post'}
             </Button>
             <p className="text-sm text-muted-foreground">
@@ -145,7 +235,6 @@ const CommunityFeed = () => {
         )}
       </Card>
 
-      {/* Posts Feed */}
       <div className="space-y-4">
         {posts.length === 0 ? (
           <Card className="shadow-soft">
@@ -155,26 +244,7 @@ const CommunityFeed = () => {
           </Card>
         ) : (
           posts.map((post) => (
-            <Card key={post.id} className="shadow-soft hover:shadow-medium transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{post.profiles.full_name}</CardTitle>
-                  <CardDescription>
-                    {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{post.content}</p>
-                {post.image_url && (
-                  <img
-                    src={post.image_url}
-                    alt="Post image"
-                    className="mt-4 rounded-lg w-full object-cover max-h-96"
-                  />
-                )}
-              </CardContent>
-            </Card>
+            <PostCard key={post.id} post={post} currentUserId={user?.id || ''} />
           ))
         )}
       </div>

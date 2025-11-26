@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Send, Image, Video } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ApproachConversation } from '@/components/ApproachConversation';
 
 interface Approach {
   id: string;
@@ -348,6 +349,7 @@ const DirectApproach = () => {
                       Waiting for barangay officials to respond...
                     </p>
                   )}
+                  <ApproachConversation approachId={approach.id} currentUserId={user.id} />
                 </CardContent>
               </Card>
             ))

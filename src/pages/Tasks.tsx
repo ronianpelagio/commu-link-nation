@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, MapPin, DollarSign, Check, Navigation } from 'lucide-react';
+import { ArrowLeft, Plus, MapPin, DollarSign, Check, Navigation, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { TaskRatingDialog } from '@/components/TaskRatingDialog';
 
 interface Task {
   id: string;
@@ -30,6 +31,9 @@ interface Task {
   profiles: {
     full_name: string;
   };
+  accepter?: {
+    full_name: string;
+  } | null;
 }
 
 const Tasks = () => {
@@ -42,6 +46,8 @@ const Tasks = () => {
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [taskToRate, setTaskToRate] = useState<Task | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
 
@@ -121,10 +127,26 @@ const Tasks = () => {
       return;
     }
 
+    // Fetch accepter profiles separately for tasks that have been accepted
+    const tasksWithAccepters = await Promise.all(
+      (data as Task[]).map(async (task) => {
+        if (task.accepted_by) {
+          const { data: accepterData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', task.accepted_by)
+            .single();
+          
+          return { ...task, accepter: accepterData };
+        }
+        return task;
+      })
+    );
+
     // Filter tasks within 50 meters if user location is available
-    let filteredTasks = data as Task[];
+    let filteredTasks = tasksWithAccepters;
     if (userLocation) {
-      filteredTasks = data.filter((task: Task) => {
+      filteredTasks = tasksWithAccepters.filter((task: Task) => {
         if (!task.location_lat || !task.location_lng) return true;
         const distance = calculateDistance(
           userLocation.lat,
@@ -132,7 +154,7 @@ const Tasks = () => {
           task.location_lat,
           task.location_lng
         );
-        return distance <= 50; // 50 meters
+        return distance <= 50;
       });
     }
 
@@ -202,6 +224,9 @@ const Tasks = () => {
   };
 
   const handleCompleteTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
     try {
       const { error } = await supabase
         .from('tasks')
@@ -213,6 +238,43 @@ const Tasks = () => {
       toast({
         title: 'Task completed!',
         description: 'Great work!',
+      });
+
+      // If user is the creator, prompt them to rate the worker
+      if (task.creator_id === user?.id && task.accepted_by) {
+        setTaskToRate(task);
+        setRatingDialogOpen(true);
+      }
+
+      fetchTasks();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSubmitRating = async (rating: number, comment: string) => {
+    if (!taskToRate || !taskToRate.accepted_by) return;
+
+    try {
+      const { error } = await supabase
+        .from('task_ratings')
+        .insert({
+          task_id: taskToRate.id,
+          rated_user_id: taskToRate.accepted_by,
+          rater_id: user?.id,
+          rating,
+          comment: comment || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Rating submitted!',
+        description: 'Thank you for your feedback.',
       });
     } catch (error: any) {
       toast({
@@ -380,6 +442,11 @@ const Tasks = () => {
                         Posted by {task.profiles.full_name} •{' '}
                         {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
                       </CardDescription>
+                      {task.status === 'in_progress' && task.accepter && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Accepted by {task.accepter.full_name}
+                        </p>
+                      )}
                     </div>
                     {task.status === 'in_progress' && (
                       <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
@@ -437,9 +504,30 @@ const Tasks = () => {
                         Mark Complete
                       </Button>
                     )}
+                    {task.status === 'in_progress' && task.creator_id === user.id && (
+                      <Button onClick={() => handleCompleteTask(task.id)} className="w-full">
+                        <Check className="h-4 w-4 mr-2" />
+                        Mark as Done
+                      </Button>
+                    )}
                     {task.status === 'completed' && (
-                      <div className="text-center py-2 bg-primary/10 rounded text-primary font-medium">
-                        Completed
+                      <div className="space-y-2">
+                        <div className="text-center py-2 bg-primary/10 rounded text-primary font-medium">
+                          Completed
+                        </div>
+                        {task.creator_id === user.id && task.accepted_by && (
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setTaskToRate(task);
+                              setRatingDialogOpen(true);
+                            }}
+                            className="w-full"
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            Rate Worker
+                          </Button>
+                        )}
                       </div>
                     )}
                     {task.creator_id === user.id && task.status === 'open' && (
@@ -464,6 +552,15 @@ const Tasks = () => {
           <div ref={mapContainer} className="w-full h-[500px] rounded-lg" />
         </DialogContent>
       </Dialog>
+
+      {taskToRate && (
+        <TaskRatingDialog
+          open={ratingDialogOpen}
+          onOpenChange={setRatingDialogOpen}
+          onSubmit={handleSubmitRating}
+          userName={taskToRate.accepter?.full_name || 'Worker'}
+        />
+      )}
     </div>
   );
 };

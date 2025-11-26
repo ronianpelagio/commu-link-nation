@@ -8,7 +8,7 @@ interface AuthContextType {
   session: Session | null;
   isAdmin: boolean;
   loading: boolean;
-  signOut: () => Promise<void>;
+  signOut: (skipConfirmation?: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -84,7 +84,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signOut = async () => {
+  const signOut = async (skipConfirmation = false) => {
+    if (!skipConfirmation) {
+      return; // Let the component handle confirmation
+    }
     await supabase.auth.signOut();
     navigate('/auth');
   };
