@@ -107,6 +107,7 @@ export default {
   				'Noto Color Emoji'
   			],
   			serif: [
+  				'Crimson Pro',
   				'ui-serif',
   				'Georgia',
   				'Cambria',
@@ -115,6 +116,7 @@ export default {
   				'serif'
   			],
   			mono: [
+  				'JetBrains Mono',
   				'ui-monospace',
   				'SFMono-Regular',
   				'Menlo',
