@@ -14,12 +14,13 @@ import {
   Send, 
   UserPlus, 
   Image as ImageIcon, 
-  Video, 
+  Video as VideoIcon, 
   MessageCircle,
   Check,
   CheckCheck,
   Clock
 } from 'lucide-react';
+import { VideoCallDialog } from '@/components/VideoCallDialog';
 import { format } from 'date-fns';
 
 interface Friend {
@@ -56,6 +57,7 @@ const Messages = () => {
   const [newMessage, setNewMessage] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [videoCallOpen, setVideoCallOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -92,8 +94,7 @@ const Messages = () => {
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .in('sender_id', [user.id, selectedFriend.profiles.id])
-      .in('receiver_id', [user.id, selectedFriend.profiles.id])
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${selectedFriend.profiles.id}),and(sender_id.eq.${selectedFriend.profiles.id},receiver_id.eq.${user.id})`)
       .order('created_at', { ascending: true });
 
     if (error) console.error(error);
@@ -238,8 +239,8 @@ const Messages = () => {
 
       if (error) throw error;
 
-      // Replace temp message with real one
-      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
+      // Remove temp message and add real one (prevents duplicates)
+      setMessages(prev => [...prev.filter(m => m.id !== tempId), data]);
     } catch (err: any) {
       toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
       setMessages(prev => prev.filter(m => m.id !== tempId));
@@ -266,23 +267,23 @@ const Messages = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
       <header className="bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-3xl font-bold text-[#2ec2b3] flex items-center gap-3">
-              <MessageCircle className="h-8 w-8" /> Messages
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#2ec2b3] flex items-center gap-2 sm:gap-3">
+              <MessageCircle className="h-6 w-6 sm:h-8 sm:w-8" /> Messages
             </h1>
           </div>
-          <Button onClick={() => navigate('/friends')} className="bg-[#2ec2b3] hover:bg-[#28a399]">
-            <UserPlus className="h-5 w-5 mr-2" /> Manage Friends
+          <Button onClick={() => navigate('/friends')} className="bg-[#2ec2b3] hover:bg-[#28a399] text-sm sm:text-base">
+            <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" /> Manage Friends
           </Button>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-4 gap-6 h-[calc(100vh-160px)]">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
+        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 h-[calc(100vh-140px)] sm:h-[calc(100vh-160px)]">
           {/* Friends List */}
           <Card className="lg:col-span-1 bg-white/90 rounded-2xl shadow-lg flex flex-col overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-[#2ec2b3]/10 to-cyan-50">
@@ -313,24 +314,40 @@ const Messages = () => {
           <Card className="lg:col-span-3 bg-white/95 rounded-2xl shadow-xl flex flex-col overflow-hidden">
             {selectedFriend ? (
               <>
-                <div className="border-b p-5 flex items-center gap-4 bg-gradient-to-r from-[#2ec2b3]/5">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={selectedFriend.profiles.avatar_url || ''} />
-                    <AvatarFallback className="bg-[#2ec2b3] text-white">
-                      {selectedFriend.profiles.full_name[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold">{selectedFriend.profiles.full_name}</p>
-                    <Badge className="bg-green-100 text-green-700">Online</Badge>
+                <VideoCallDialog
+                  open={videoCallOpen}
+                  onOpenChange={setVideoCallOpen}
+                  friendName={selectedFriend.profiles.full_name}
+                />
+                <div className="border-b p-3 sm:p-5 flex items-center justify-between bg-gradient-to-r from-[#2ec2b3]/5">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+                      <AvatarImage src={selectedFriend.profiles.avatar_url || ''} />
+                      <AvatarFallback className="bg-[#2ec2b3] text-white">
+                        {selectedFriend.profiles.full_name[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold text-sm sm:text-base">{selectedFriend.profiles.full_name}</p>
+                      <Badge className="bg-green-100 text-green-700 text-xs">Online</Badge>
+                    </div>
                   </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setVideoCallOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <VideoIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Call</span>
+                  </Button>
                 </div>
 
-                <ScrollArea className="flex-1 p-6">
-                  <div className="space-y-4">
-                    {messages.map(msg => (
-                      <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs lg:max-w-md rounded-2xl p-4 shadow-md relative ${
+                <ScrollArea className="flex-1 p-3 sm:p-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    {messages.map((msg, idx) => (
+                      <div key={`${msg.id}-${idx}`} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] sm:max-w-xs lg:max-w-md rounded-2xl p-3 sm:p-4 shadow-md relative ${
                           msg.sender_id === user?.id ? 'bg-[#2ec2b3] text-white' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {msg.media_url && (
@@ -361,7 +378,7 @@ const Messages = () => {
                 <div className="border-t bg-gray-50 p-4">
                   {mediaFile && (
                     <div className="mb-3 bg-white p-3 rounded-xl flex items-center gap-3 text-sm">
-                      {mediaFile.type.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-[#2ec2b3]" /> : <Video className="h-5 w-5 text-[#2ec2b3]" />}
+                      {mediaFile.type.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-[#2ec2b3]" /> : <VideoIcon className="h-5 w-5 text-[#2ec2b3]" />}
                       <span className="flex-1 truncate">{mediaFile.name}</span>
                       <Button size="sm" variant="ghost" onClick={() => { setMediaFile(null); fileInputRef.current && (fileInputRef.current.value = ''); }}>
                         ×
@@ -371,9 +388,9 @@ const Messages = () => {
 
                   <form onSubmit={handleSendMessage} className="flex gap-3">
                     <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={e => e.target.files?.[0] && setMediaFile(e.target.files[0])} className="hidden" />
-                    <Button type="button" size="icon" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                      <ImageIcon className="h-5 w-5" />
-                    </Button>
+                  <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                    <ImageIcon className="h-5 w-5" />
+                  </Button>
                     <Input
                       value={newMessage}
                       onChange={e => setNewMessage(e.target.value)}

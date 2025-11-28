@@ -136,6 +136,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          delivered_at: string | null
           id: string
           media_type: string | null
           media_url: string | null
@@ -146,6 +147,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          delivered_at?: string | null
           id?: string
           media_type?: string | null
           media_url?: string | null
@@ -156,6 +158,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          delivered_at?: string | null
           id?: string
           media_type?: string | null
           media_url?: string | null
@@ -208,6 +211,13 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

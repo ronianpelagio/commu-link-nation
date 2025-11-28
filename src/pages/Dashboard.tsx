@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import CommunityFeed from '@/components/dashboard/CommunityFeed';
 import { SignOutDialog } from '@/components/SignOutDialog';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const Dashboard = () => {
   const { user, isAdmin, loading, signOut } = useAuth();
@@ -51,8 +52,8 @@ const Dashboard = () => {
       {/* Top Navigation */}
       <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-3xl font-bold text-[#2ec2b3]">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#2ec2b3]">
               Community Match
             </h1>
 
@@ -85,10 +86,12 @@ const Dashboard = () => {
                 </Button>
               )}
 
+              <NotificationBell />
+
               <Button
                 variant="ghost"
                 size="icon"
-                className="ml-4 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                className="ml-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                 onClick={() => setShowSignOutDialog(true)}
               >
                 <LogOut className="h-5 w-5" />
@@ -114,39 +117,43 @@ const Dashboard = () => {
       />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
         {/* Welcome Hero */}
-        <div className="mb-10">
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 overflow-hidden relative">
+        <div className="mb-6 sm:mb-10">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-8 md:p-12 overflow-hidden relative">
             <div className="absolute inset-0 bg-gradient-to-r from-[#2ec2b3]/5 to-transparent pointer-events-none"></div>
-            <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+            <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6 sm:gap-8">
               <div>
-                <h2 className="text-4xl font-bold text-gray-900">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
                   Welcome back,<br />
                   <span className="text-[#2ec2b3]">
                     {user?.user_metadata?.full_name || 'Friend'}
                   </span>!
                 </h2>
-                <p className="text-gray-600 text-lg mt-3">
+                <p className="text-gray-600 text-base sm:text-lg mt-2 sm:mt-3">
                   Here's what's happening in your barangay today
                 </p>
               </div>
-              <div className="w-28 h-28 bg-[#2ec2b3] rounded-3xl flex items-center justify-center text-white text-5xl font-bold shadow-2xl">
-                {user?.user_metadata?.full_name [0] || 'U'}
+              <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-[#2ec2b3] rounded-2xl sm:rounded-3xl flex items-center justify-center text-white text-4xl sm:text-5xl font-bold shadow-2xl overflow-hidden">
+                {user?.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  user?.user_metadata?.full_name?.[0] || 'U'
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Community Feed */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-[#2ec2b3] p-8 text-white">
-            <h3 className="text-3xl font-bold">Community Feed</h3>
-            <p className="mt-2 opacity-90 text-lg">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+          <div className="bg-[#2ec2b3] p-6 sm:p-8 text-white">
+            <h3 className="text-2xl sm:text-3xl font-bold">Community Feed</h3>
+            <p className="mt-2 opacity-90 text-base sm:text-lg">
               Latest tasks, announcements, and messages from your community
             </p>
           </div>
-          <div className="p-8">
+          <div className="p-4 sm:p-6 lg:p-8">
             <CommunityFeed />
           </div>
         </div>

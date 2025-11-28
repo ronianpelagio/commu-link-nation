@@ -89,7 +89,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return; // Let the component handle confirmation
     }
     await supabase.auth.signOut();
-    navigate('/auth');
+    setUser(null);
+    setSession(null);
+    setIsAdmin(false);
+    
+    // Show toast notification
+    const { toast } = await import('@/hooks/use-toast');
+    toast({
+      title: "Signed out successfully",
+      description: "You have been logged out of your account.",
+    });
+    
+    navigate('/');
   };
 
   return (

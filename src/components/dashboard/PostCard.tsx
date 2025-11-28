@@ -48,11 +48,15 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
   const fetchComments = useCallback(async () => {
     const { data } = await supabase
       .from('post_comments')
-      .select('*, profiles(full_name, avatar_url)')
+      .select(`
+        id,
+        content,
+        profiles!post_comments_user_id_fkey(full_name, avatar_url)
+      `)
       .eq('post_id', post.id)
       .order('created_at', { ascending: true });
 
-    if (data) setComments(data as CommentType[]);
+    if (data) setComments(data as any as CommentType[]);
   }, [post.id]);
 
   useEffect(() => {

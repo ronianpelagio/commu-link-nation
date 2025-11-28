@@ -70,7 +70,9 @@ const Tasks = () => {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => fetchTasks())
         .subscribe();
 
-      return () => supabase.removeChannel(channel);
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user]);
 
@@ -313,23 +315,24 @@ const Tasks = () => {
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
       {/* Top Bar */}
       <header className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="hover:bg-teal-50 rounded-xl">
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
-              <h1 className="text-3xl font-bold text-[#2ec2b3] flex items-center gap-3">
-                <ClipboardList className="h-8 w-8" />
-                Task Board
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#2ec2b3] flex items-center gap-2 sm:gap-3">
+                <ClipboardList className="h-6 w-6 sm:h-8 sm:w-8" />
+                <span className="hidden sm:inline">Task Board</span>
+                <span className="sm:hidden">Tasks</span>
               </h1>
             </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-[#2ec2b3] hover:bg-[#28a399] text-white rounded-xl shadow-lg">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Create Task
+                <Button className="bg-[#2ec2b3] hover:bg-[#28a399] text-white rounded-xl shadow-lg text-sm sm:text-base">
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5 sm:mr-2" />
+                  <span className="hidden sm:inline">Create Task</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-lg">
@@ -370,18 +373,18 @@ const Tasks = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
         {!userLocation && (
-          <Card className="mb-6 border-orange-200 bg-orange-50">
-            <CardContent className="py-4 flex items-center gap-3">
-              <MapPin className="h-5 w-5 text-orange-600" />
-              <p className="text-sm text-orange-800">Enable location to post & see tasks nearby</p>
+          <Card className="mb-4 sm:mb-6 border-orange-200 bg-orange-50">
+            <CardContent className="py-3 sm:py-4 flex items-center gap-3">
+              <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 flex-shrink-0" />
+              <p className="text-xs sm:text-sm text-orange-800">Enable location to post & see tasks nearby</p>
             </CardContent>
           </Card>
         )}
 
-        <ScrollArea className="h-[calc(100vh-200px)] pr-4">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <ScrollArea className="h-[calc(100vh-160px)] sm:h-[calc(100vh-200px)] pr-2 sm:pr-4">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {tasks.length === 0 ? (
               <Card className="col-span-full">
                 <CardContent className="py-24 text-center">
