@@ -206,21 +206,6 @@ export function NotificationBell() {
     }
   };
 
-  // Show toast for new notifications
-  useEffect(() => {
-    if (notifications.length > 0 && !open) {
-      const latestNotification = notifications[0];
-      if (!latestNotification.read) {
-        const { toast } = require('@/hooks/use-toast');
-        toast({
-          title: latestNotification.sender_name,
-          description: latestNotification.content,
-          duration: 4000,
-        });
-      }
-    }
-  }, [notifications]);
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

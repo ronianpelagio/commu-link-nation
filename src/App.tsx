@@ -13,7 +13,6 @@ import Messages from "./pages/Messages";
 import Friends from "./pages/Friends";
 import DirectApproach from "./pages/DirectApproach";
 import Profile from "./pages/Profile";
-import ContactBarangay from "./pages/ContactBarangay";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
 
@@ -36,7 +35,6 @@ const App = () => (
             <Route path="/friends" element={<Friends />} />
             <Route path="/direct-approach" element={<DirectApproach />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/contact-barangay" element={<ContactBarangay />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
             <Route path="/reset-password" element={<ResetPassword />} />

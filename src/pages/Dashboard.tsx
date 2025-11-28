@@ -43,7 +43,7 @@ const Dashboard = () => {
     { icon: Home, label: 'Home', path: '/', active: true },
     { icon: ClipboardList, label: 'Tasks', path: '/tasks' },
     { icon: MessageCircle, label: 'Messages', path: '/messages' },
-    { icon: Phone, label: 'Contact Barangay', path: '/contact-barangay' },
+    { icon: Phone, label: 'Contact Barangay', path: '/direct-approach' },
     { icon: User, label: 'Profile', path: '/profile' },
   ];
 
