@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -33,16 +33,12 @@ const CommunityFeed = () => {
 
   useEffect(() => {
     fetchPosts();
-    
+
     const channel = supabase
       .channel('posts-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'posts',
-        },
+        { event: '*', schema: 'public', table: 'posts' },
         () => {
           fetchPosts();
         }
@@ -79,25 +75,17 @@ const CommunityFeed = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const maxSize = 50 * 1024 * 1024;
-      
+
       if (file.size > maxSize) {
-        toast({
-          title: 'Error',
-          description: 'File size must be less than 50MB',
-          variant: 'destructive',
-        });
+        toast({ title: 'Error', description: 'File size must be less than 50MB', variant: 'destructive' });
         return;
       }
-      
+
       if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-        toast({
-          title: 'Error',
-          description: 'Only images and videos are allowed',
-          variant: 'destructive',
-        });
+        toast({ title: 'Error', description: 'Only images and videos are allowed', variant: 'destructive' });
         return;
       }
-      
+
       setMediaFile(file);
     }
   };
@@ -108,10 +96,7 @@ const CommunityFeed = () => {
     const fileExt = mediaFile.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('message-media')
-      .upload(fileName, mediaFile);
-
+    const { error: uploadError } = await supabase.storage.from('message-media').upload(fileName, mediaFile);
     if (uploadError) throw uploadError;
 
     const { data } = supabase.storage.from('message-media').getPublicUrl(fileName);
@@ -134,31 +119,23 @@ const CommunityFeed = () => {
         }
       }
 
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user?.id,
-          content: newPost,
-          status: 'pending',
-          image_url: mediaUrl,
-          media_type: mediaType,
-        });
+      const { error } = await supabase.from('posts').insert({
+        user_id: user?.id,
+        content: newPost,
+        status: 'pending',
+        image_url: mediaUrl,
+        media_type: mediaType,
+      });
 
       if (error) throw error;
 
-      toast({
-        title: 'Post submitted!',
-        description: 'Your post is pending approval from barangay officials.',
-      });
+      toast({ title: 'Post submitted!', description: 'Your post is pending approval from barangay officials.' });
       setNewPost('');
       setMediaFile(null);
       setShowNewPost(false);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+    } catch (err) {
+      const error = err as Error;
+      toast({ title: 'Error', description: error?.message ?? 'An error occurred', variant: 'destructive' });
     } finally {
       setIsPosting(false);
     }
@@ -166,74 +143,52 @@ const CommunityFeed = () => {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-soft">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Community Feed</CardTitle>
-            <Button
-              onClick={() => setShowNewPost(!showNewPost)}
-              size="sm"
-              variant={showNewPost ? 'secondary' : 'default'}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {showNewPost ? 'Cancel' : 'New Post'}
-            </Button>
-          </div>
-        </CardHeader>
-        {showNewPost && (
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Community Feed</h2>
+        <button
+          onClick={() => setShowNewPost(!showNewPost)}
+          className="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-4 py-2 shadow-md"
+        >
+          <Plus className="h-4 w-4" />
+          {showNewPost ? 'Cancel' : 'New Post'}
+        </button>
+      </div>
+
+      {showNewPost && (
+        <Card className="shadow-soft">
           <CardContent className="space-y-4">
             <Textarea
               placeholder="Share something with your community..."
               value={newPost}
               onChange={(e) => setNewPost(e.target.value)}
-              className="min-h-[100px]"
+              className="min-h-[100px] rounded-lg"
             />
             <div className="space-y-2">
               <Label>Attach Media (optional)</Label>
               <div className="flex gap-2">
-                <Input
-                  id="media"
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
+                <Input id="media" type="file" accept="image/*,video/*" onChange={handleFileSelect} className="hidden" />
                 <Label htmlFor="media" className="cursor-pointer flex-1">
                   <Button type="button" variant="outline" className="w-full" asChild>
                     <span>
-                      {mediaFile?.type.startsWith('video/') ? (
-                        <Video className="h-4 w-4 mr-2" />
-                      ) : (
-                        <Image className="h-4 w-4 mr-2" />
-                      )}
+                      {mediaFile?.type.startsWith('video/') ? <Video className="h-4 w-4 mr-2" /> : <Image className="h-4 w-4 mr-2" />}
                       {mediaFile ? mediaFile.name : 'Attach Image/Video'}
                     </span>
                   </Button>
                 </Label>
                 {mediaFile && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setMediaFile(null)}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setMediaFile(null)}>
                     Clear
                   </Button>
                 )}
               </div>
             </div>
-            <Button
-              onClick={handleCreatePost}
-              disabled={isPosting || !newPost.trim()}
-              className="w-full"
-            >
+            <Button onClick={handleCreatePost} disabled={isPosting || !newPost.trim()} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
               {isPosting ? 'Posting...' : 'Post'}
             </Button>
-            <p className="text-sm text-muted-foreground">
-              Your post will be reviewed by barangay officials before appearing in the feed.
-            </p>
+            <p className="text-sm text-muted-foreground">Your post will be reviewed by barangay officials before appearing in the feed.</p>
           </CardContent>
-        )}
-      </Card>
+        </Card>
+      )}
 
       <div className="space-y-4">
         {posts.length === 0 ? (
@@ -243,9 +198,7 @@ const CommunityFeed = () => {
             </CardContent>
           </Card>
         ) : (
-          posts.map((post) => (
-            <PostCard key={post.id} post={post} currentUserId={user?.id || ''} />
-          ))
+          posts.map((post) => <PostCard key={post.id} post={post} currentUserId={user?.id || ''} />)
         )}
       </div>
     </div>
@@ -253,3 +206,4 @@ const CommunityFeed = () => {
 };
 
 export default CommunityFeed;
+ 

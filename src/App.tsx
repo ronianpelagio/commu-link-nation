@@ -14,6 +14,7 @@ import Friends from "./pages/Friends";
 import DirectApproach from "./pages/DirectApproach";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

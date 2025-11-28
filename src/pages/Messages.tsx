@@ -2,13 +2,25 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send, UserPlus, Image, Video } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { 
+  ArrowLeft, 
+  Send, 
+  UserPlus, 
+  Image as ImageIcon, 
+  Video, 
+  MessageCircle,
+  Check,
+  CheckCheck,
+  Clock
+} from 'lucide-react';
+import { format } from 'date-fns';
 
 interface Friend {
   id: string;
@@ -24,154 +36,155 @@ interface Message {
   id: string;
   content: string;
   sender_id: string;
+  receiver_id: string;
   created_at: string;
   media_url: string | null;
   media_type: string | null;
+  delivered_at: string | null;
+  // Local state for sending animation
+  isSending?: boolean;
 }
 
 const Messages = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
   const [friends, setFriends] = useState<Friend[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
+    if (!loading && !user) navigate('/auth');
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (user) {
-      fetchFriends();
-    }
+    if (user) fetchFriends();
   }, [user]);
 
   useEffect(() => {
-    if (selectedFriend) {
-      fetchMessages();
-
-      const channel = supabase
-        .channel(`messages-${selectedFriend.profiles.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `sender_id=eq.${selectedFriend.profiles.id},receiver_id=eq.${user?.id}`,
-          },
-          () => {
-            fetchMessages();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [selectedFriend, user]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const fetchFriends = async () => {
     const { data, error } = await supabase
       .from('friendships')
       .select(`
-        id,
-        friend_id,
-        profiles!friendships_friend_id_fkey (
-          id,
-          full_name,
-          avatar_url
-        )
+        id, friend_id,
+        profiles!friendships_friend_id_fkey (id, full_name, avatar_url)
       `)
       .eq('user_id', user?.id)
       .eq('status', 'accepted');
 
-    if (error) {
-      console.error('Error fetching friends:', error);
-      return;
-    }
-
-    setFriends(data as Friend[]);
+    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    else setFriends(data || []);
   };
 
   const fetchMessages = async () => {
-    if (!selectedFriend) return;
+    if (!selectedFriend || !user) return;
 
     const { data, error } = await supabase
       .from('messages')
       .select('*')
-      .or(
-        `and(sender_id.eq.${user?.id},receiver_id.eq.${selectedFriend.profiles.id}),and(sender_id.eq.${selectedFriend.profiles.id},receiver_id.eq.${user?.id})`
-      )
+      .in('sender_id', [user.id, selectedFriend.profiles.id])
+      .in('receiver_id', [user.id, selectedFriend.profiles.id])
       .order('created_at', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching messages:', error);
-      return;
-    }
-
-    setMessages(data);
+    if (error) console.error(error);
+    else setMessages(data || []);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Real-time: New messages + Delivery updates
+  useEffect(() => {
+    if (!selectedFriend || !user) return;
 
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
-      toast({
-        title: 'File too large',
-        description: 'Maximum file size is 50MB',
-        variant: 'destructive',
-      });
-      return;
-    }
+    fetchMessages();
 
-    const allowedTypes = ['image/', 'video/'];
-    if (!allowedTypes.some(type => file.type.startsWith(type))) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Only images and videos are allowed',
-        variant: 'destructive',
-      });
-      return;
-    }
+    const channel = supabase
+      .channel(`chat:${[user.id, selectedFriend.profiles.id].sort().join('-')}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          const isFromFriend = newMsg.sender_id === selectedFriend.profiles.id;
+          const isToMe = newMsg.receiver_id === user.id;
 
-    setMediaFile(file);
-  };
+          if ((isFromFriend && isToMe) || newMsg.sender_id === user.id) {
+            setMessages(prev => [...prev, newMsg]);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === updated.id ? { ...msg, delivered_at: updated.delivered_at } : msg
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedFriend, user]);
+
+  // Mark messages as delivered when user views chat
+  useEffect(() => {
+    if (!selectedFriend || !user) return;
+
+    const markDelivered = async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .eq('sender_id', selectedFriend.profiles.id)
+        .is('delivered_at', null);
+
+      if (data && data.length > 0) {
+        const ids = data.map(m => m.id);
+        await supabase
+          .from('messages')
+          .update({ delivered_at: new Date().toISOString() })
+          .in('id', ids);
+      }
+    };
+
+    markDelivered();
+  }, [selectedFriend, user]);
 
   const uploadMedia = async (file: File): Promise<string | null> => {
     try {
       setIsUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+      const ext = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
+      const path = `${user?.id}/${fileName}`;
 
-      const { data, error } = await supabase.storage
-        .from('message-media')
-        .upload(fileName, file);
-
+      const { error } = await supabase.storage.from('message-media').upload(path, file);
       if (error) throw error;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('message-media')
-        .getPublicUrl(fileName);
-
-      return publicUrl;
-    } catch (error: any) {
-      toast({
-        title: 'Upload Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      const { data } = supabase.storage.from('message-media').getPublicUrl(path);
+      return data.publicUrl;
+    } catch (err: any) {
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
       return null;
     } finally {
       setIsUploading(false);
@@ -180,209 +193,207 @@ const Messages = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !mediaFile) || !selectedFriend || isSending) return;
+    if ((!newMessage.trim() && !mediaFile) || !selectedFriend) return;
 
-    setIsSending(true);
+    const tempId = Date.now().toString();
+    const tempMessage: Message = {
+      id: tempId,
+      sender_id: user!.id,
+      receiver_id: selectedFriend.profiles.id,
+      content: newMessage.trim() || null,
+      media_url: null,
+      media_type: null,
+      created_at: new Date().toISOString(),
+      delivered_at: null,
+      isSending: true,
+    };
+
+    // Optimistically add message
+    setMessages(prev => [...prev, tempMessage]);
+    setNewMessage('');
+    setMediaFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
     try {
       let mediaUrl = null;
       let mediaType = null;
 
       if (mediaFile) {
         mediaUrl = await uploadMedia(mediaFile);
-        if (!mediaUrl) {
-          setIsSending(false);
-          return;
-        }
+        if (!mediaUrl) throw new Error('Upload failed');
         mediaType = mediaFile.type.startsWith('image/') ? 'image' : 'video';
       }
 
-      const { error } = await supabase.from('messages').insert({
-        sender_id: user?.id,
-        receiver_id: selectedFriend.profiles.id,
-        content: newMessage.trim() || (mediaType === 'image' ? 'Sent an image' : 'Sent a video'),
-        media_url: mediaUrl,
-        media_type: mediaType,
-      });
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user?.id,
+          receiver_id: selectedFriend.profiles.id,
+          content: newMessage.trim() || null,
+          media_url: mediaUrl,
+          media_type: mediaType,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setNewMessage('');
-      setMediaFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      fetchMessages();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSending(false);
+      // Replace temp message with real one
+      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
+    } catch (err: any) {
+      toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  const getMessageStatus = (msg: Message) => {
+    if (msg.isSending) {
+      return <Clock className="h-3.5 w-3.5 animate-spin" />;
+    }
+    if (!msg.delivered_at) {
+      return <Check className="h-3.5 w-3.5" />;
+    }
+    return <CheckCheck className="h-4 w-4" />;
+  };
+
+  const formatTime = (date: string) => {
+    return format(new Date(date), 'h:mm a');
+  };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-10 w-10 border-4 border-[#2ec2b3] rounded-full border-t-transparent"></div></div>;
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="bg-background border-b shadow-soft">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
+      <header className="bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold">Messages</h1>
-            <Button variant="outline" className="ml-auto" onClick={() => navigate('/friends')}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Manage Friends
-            </Button>
+            <h1 className="text-3xl font-bold text-[#2ec2b3] flex items-center gap-3">
+              <MessageCircle className="h-8 w-8" /> Messages
+            </h1>
           </div>
+          <Button onClick={() => navigate('/friends')} className="bg-[#2ec2b3] hover:bg-[#28a399]">
+            <UserPlus className="h-5 w-5 mr-2" /> Manage Friends
+          </Button>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-4 gap-6 h-[calc(100vh-160px)]">
           {/* Friends List */}
-          <Card className="lg:col-span-1 shadow-soft overflow-auto">
-            <CardHeader>
-              <CardTitle className="text-lg">Friends</CardTitle>
+          <Card className="lg:col-span-1 bg-white/90 rounded-2xl shadow-lg flex flex-col overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-[#2ec2b3]/10 to-cyan-50">
+              <h3 className="font-semibold text-[#2ec2b3]">Chats</h3>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {friends.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No friends yet. Add friends to start chatting!
-                </p>
-              ) : (
-                friends.map((friend) => (
-                  <Button
+            <ScrollArea className="flex-1">
+              <div className="p-3 space-y-2">
+                {friends.map(friend => (
+                  <button
                     key={friend.id}
-                    variant={selectedFriend?.id === friend.id ? 'secondary' : 'ghost'}
-                    className="w-full justify-start"
                     onClick={() => setSelectedFriend(friend)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                      selectedFriend?.id === friend.id ? 'bg-[#2ec2b3] text-white' : 'hover:bg-teal-50'
+                    }`}
                   >
-                    <Avatar className="h-8 w-8 mr-2">
+                    <Avatar>
                       <AvatarImage src={friend.profiles.avatar_url || ''} />
                       <AvatarFallback>{friend.profiles.full_name[0]}</AvatarFallback>
                     </Avatar>
-                    {friend.profiles.full_name}
-                  </Button>
-                ))
-              )}
-            </CardContent>
+                    <span className="font-medium">{friend.profiles.full_name}</span>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
           </Card>
 
-          {/* Chat Window */}
-          <Card className="lg:col-span-3 shadow-soft flex flex-col">
+          {/* Chat */}
+          <Card className="lg:col-span-3 bg-white/95 rounded-2xl shadow-xl flex flex-col overflow-hidden">
             {selectedFriend ? (
               <>
-                <CardHeader className="border-b">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={selectedFriend.profiles.avatar_url || ''} />
-                      <AvatarFallback>{selectedFriend.profiles.full_name[0]}</AvatarFallback>
-                    </Avatar>
-                    <CardTitle>{selectedFriend.profiles.full_name}</CardTitle>
+                <div className="border-b p-5 flex items-center gap-4 bg-gradient-to-r from-[#2ec2b3]/5">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={selectedFriend.profiles.avatar_url || ''} />
+                    <AvatarFallback className="bg-[#2ec2b3] text-white">
+                      {selectedFriend.profiles.full_name[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">{selectedFriend.profiles.full_name}</p>
+                    <Badge className="bg-green-100 text-green-700">Online</Badge>
                   </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-auto p-4 space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.sender_id === user.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-lg p-3 ${
-                          message.sender_id === user.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        }`}
-                      >
-                        {message.media_url && (
-                          <div className="mb-2">
-                            {message.media_type === 'image' ? (
-                              <img
-                                src={message.media_url}
-                                alt="Shared media"
-                                className="rounded max-w-full h-auto max-h-64 object-cover"
-                              />
-                            ) : (
-                              <video
-                                src={message.media_url}
-                                controls
-                                className="rounded max-w-full h-auto max-h-64"
-                              />
+                </div>
+
+                <ScrollArea className="flex-1 p-6">
+                  <div className="space-y-4">
+                    {messages.map(msg => (
+                      <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-xs lg:max-w-md rounded-2xl p-4 shadow-md relative ${
+                          msg.sender_id === user?.id ? 'bg-[#2ec2b3] text-white' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {msg.media_url && (
+                            <div className="mb-3 rounded-xl overflow-hidden">
+                              {msg.media_type === 'image' ? (
+                                <img src={msg.media_url} className="rounded-xl max-w-full" />
+                              ) : (
+                                <video src={msg.media_url} controls className="rounded-xl max-w-full" />
+                              )}
+                            </div>
+                          )}
+                          {msg.content && <p className="break-words">{msg.content}</p>}
+                          <div className="flex items-center gap-2 mt-1 text-xs opacity-70">
+                            <span>{formatTime(msg.created_at)}</span>
+                            {msg.sender_id === user?.id && (
+                              <span className="flex items-center">
+                                {getMessageStatus(msg)}
+                              </span>
                             )}
                           </div>
-                        )}
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                        </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </CardContent>
-                <CardContent className="border-t p-4">
-                  <form onSubmit={handleSendMessage} className="space-y-2">
-                    {mediaFile && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-2 rounded">
-                        {mediaFile.type.startsWith('image/') ? (
-                          <Image className="h-4 w-4" />
-                        ) : (
-                          <Video className="h-4 w-4" />
-                        )}
-                        <span className="flex-1 truncate">{mediaFile.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setMediaFile(null);
-                            if (fileInputRef.current) fileInputRef.current.value = '';
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isSending || isUploading}
-                      >
-                        <Image className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1"
-                        disabled={isSending || isUploading}
-                      />
-                      <Button type="submit" size="icon" disabled={isSending || isUploading}>
-                        <Send className="h-4 w-4" />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+
+                <div className="border-t bg-gray-50 p-4">
+                  {mediaFile && (
+                    <div className="mb-3 bg-white p-3 rounded-xl flex items-center gap-3 text-sm">
+                      {mediaFile.type.startsWith('image/') ? <ImageIcon className="h-5 w-5 text-[#2ec2b3]" /> : <Video className="h-5 w-5 text-[#2ec2b3]" />}
+                      <span className="flex-1 truncate">{mediaFile.name}</span>
+                      <Button size="sm" variant="ghost" onClick={() => { setMediaFile(null); fileInputRef.current && (fileInputRef.current.value = ''); }}>
+                        ×
                       </Button>
                     </div>
+                  )}
+
+                  <form onSubmit={handleSendMessage} className="flex gap-3">
+                    <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={e => e.target.files?.[0] && setMediaFile(e.target.files[0])} className="hidden" />
+                    <Button type="button" size="icon" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                      <ImageIcon className="h-5 w-5" />
+                    </Button>
+                    <Input
+                      value={newMessage}
+                      onChange={e => setNewMessage(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1"
+                      disabled={isUploading}
+                    />
+                    <Button type="submit" disabled={!newMessage.trim() && !mediaFile} className="bg-[#2ec2b3] hover:bg-[#28a399]">
+                      <Send className="h-5 w-5" />
+                    </Button>
                   </form>
-                </CardContent>
+                </div>
               </>
             ) : (
-              <CardContent className="flex-1 flex items-center justify-center">
-                <p className="text-muted-foreground">Select a friend to start chatting</p>
-              </CardContent>
+              <div className="flex-1 flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <MessageCircle className="h-20 w-20 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg">Select a chat to start messaging</p>
+                </div>
+              </div>
             )}
           </Card>
         </div>

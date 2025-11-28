@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Heart, MessageCircle } from 'lucide-react';
+import { Heart, MessageCircle, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Post {
@@ -25,40 +25,40 @@ interface PostCardProps {
   currentUserId: string;
 }
 
+type Like = { id: string; user_id: string };
+type CommentType = { id: string; content: string; profiles: { full_name: string; avatar_url?: string | null } };
+
 export function PostCard({ post, currentUserId }: PostCardProps) {
   const { toast } = useToast();
-  const [likes, setLikes] = useState<any[]>([]);
-  const [comments, setComments] = useState<any[]>([]);
+  const [likes, setLikes] = useState<Like[]>([]);
+  const [comments, setComments] = useState<CommentType[]>([]);
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
   const [hasLiked, setHasLiked] = useState(false);
 
-  useEffect(() => {
-    fetchLikes();
-    fetchComments();
-  }, [post.id]);
-
-  const fetchLikes = async () => {
-    const { data } = await supabase
-      .from('post_likes')
-      .select('*')
-      .eq('post_id', post.id);
-    
+  const fetchLikes = useCallback(async () => {
+    const { data } = await supabase.from('post_likes').select('*').eq('post_id', post.id);
     if (data) {
-      setLikes(data);
-      setHasLiked(data.some(like => like.user_id === currentUserId));
+      // map to Like[] shape if needed
+      setLikes(data as Like[]);
+      setHasLiked((data as Like[]).some((like) => like.user_id === currentUserId));
     }
-  };
+  }, [post.id, currentUserId]);
 
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     const { data } = await supabase
       .from('post_comments')
       .select('*, profiles(full_name, avatar_url)')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true });
-    
-    if (data) setComments(data);
-  };
+
+    if (data) setComments(data as CommentType[]);
+  }, [post.id]);
+
+  useEffect(() => {
+    fetchLikes();
+    fetchComments();
+  }, [fetchLikes, fetchComments]);
 
   const handleLike = async () => {
     if (hasLiked) {
@@ -114,23 +114,33 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
   };
 
   return (
-    <Card>
+    <Card className="shadow-soft rounded-lg">
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src={post.profiles.avatar_url || ''} />
-            <AvatarFallback>{post.profiles.full_name[0]}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-semibold">{post.profiles.full_name}</p>
-            <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-            </p>
+        <div className="flex items-start justify-between w-full">
+          <div className="flex items-center gap-3">
+            <Avatar>
+              <AvatarImage src={post.profiles.avatar_url || ''} />
+              <AvatarFallback>{post.profiles.full_name[0]}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="font-semibold">{post.profiles.full_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+              </p>
+            </div>
+          </div>
+
+          <div className="text-muted-foreground">
+            <button aria-label="More options" className="p-2 rounded-full hover:bg-slate-100">
+              <MoreVertical className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </CardHeader>
+
       <CardContent className="space-y-4">
-        <p>{post.content}</p>
+        <p className="text-sm leading-relaxed">{post.content}</p>
+
         {post.image_url && (
           post.media_type?.startsWith('video/') ? (
             <video src={post.image_url} controls className="w-full rounded-lg" />
@@ -138,25 +148,34 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
             <img src={post.image_url} alt="Post" className="w-full rounded-lg" />
           )
         )}
-        
-        <div className="flex items-center gap-4 pt-2 border-t">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLike}
-            className={hasLiked ? 'text-red-500' : ''}
-          >
-            <Heart className={`h-4 w-4 mr-1 ${hasLiked ? 'fill-current' : ''}`} />
-            {likes.length}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowComments(!showComments)}
-          >
-            <MessageCircle className="h-4 w-4 mr-1" />
-            {comments.length}
-          </Button>
+
+        <div className="flex items-center justify-between pt-3 border-t">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleLike}
+              className={`inline-flex items-center gap-2 text-sm ${hasLiked ? 'text-red-500' : 'text-muted-foreground'}`}
+            >
+              <Heart className={`h-5 w-5 ${hasLiked ? 'fill-current' : ''}`} />
+              <span className="font-medium">{likes.length}</span>
+            </button>
+
+            <button
+              onClick={() => setShowComments(!showComments)}
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <MessageCircle className="h-5 w-5" />
+              <span className="font-medium">{comments.length}</span>
+            </button>
+          </div>
+
+          <div>
+            <button
+              onClick={() => setShowComments(true)}
+              className="bg-cyan-50 text-cyan-700 px-3 py-1 rounded-md text-sm font-medium"
+            >
+              Comment
+            </button>
+          </div>
         </div>
 
         {showComments && (

@@ -6,11 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, MapPin, DollarSign, Check, Navigation, Star } from 'lucide-react';
+import { ArrowLeft, Plus, MapPin, DollarSign, Check, Navigation, Star, ClipboardList, Trash2, Locate } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -28,12 +30,8 @@ interface Task {
   created_at: string;
   creator_id: string;
   accepted_by: string | null;
-  profiles: {
-    full_name: string;
-  };
-  accepter?: {
-    full_name: string;
-  } | null;
+  profiles: { full_name: string };
+  accepter?: { full_name: string } | null;
 }
 
 const Tasks = () => {
@@ -48,13 +46,18 @@ const Tasks = () => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
   const [taskToRate, setTaskToRate] = useState<Task | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
+    const token = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
+    if (token) mapboxgl.accessToken = token;
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !user) navigate('/auth');
   }, [user, loading, navigate]);
 
   useEffect(() => {
@@ -64,51 +67,38 @@ const Tasks = () => {
 
       const channel = supabase
         .channel('tasks-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-          fetchTasks();
-        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => fetchTasks())
         .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      return () => supabase.removeChannel(channel);
     }
   }, [user]);
 
   const getUserLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          toast({
-            title: 'Location Error',
-            description: 'Could not get your location. You can still view all tasks.',
-            variant: 'destructive',
-          });
-        }
-      );
-    }
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLocation(location);
+        toast({ title: "Location updated", description: "Ready to post tasks!" });
+      },
+      () => {
+        toast({ title: "Location denied", description: "Enable to use your current location", variant: "destructive" });
+      },
+      { enableHighAccuracy: true }
+    );
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
     const Δφ = ((lat2 - lat1) * Math.PI) / 180;
     const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // Distance in meters
+    return R * c;
   };
 
   const fetchTasks = async () => {
@@ -116,18 +106,12 @@ const Tasks = () => {
       .from('tasks')
       .select(`
         *,
-        profiles!tasks_creator_id_fkey (
-          full_name
-        )
+        profiles!tasks_creator_id_fkey (full_name)
       `)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching tasks:', error);
-      return;
-    }
+    if (error) return console.error(error);
 
-    // Fetch accepter profiles separately for tasks that have been accepted
     const tasksWithAccepters = await Promise.all(
       (data as Task[]).map(async (task) => {
         if (task.accepted_by) {
@@ -136,40 +120,36 @@ const Tasks = () => {
             .select('full_name')
             .eq('id', task.accepted_by)
             .single();
-          
           return { ...task, accepter: accepterData };
         }
         return task;
       })
     );
 
-    // Filter tasks within 50 meters if user location is available
-    let filteredTasks = tasksWithAccepters;
+    let filtered = tasksWithAccepters;
     if (userLocation) {
-      filteredTasks = tasksWithAccepters.filter((task: Task) => {
+      filtered = tasksWithAccepters.filter((task: Task) => {
         if (!task.location_lat || !task.location_lng) return true;
-        const distance = calculateDistance(
-          userLocation.lat,
-          userLocation.lng,
-          task.location_lat,
-          task.location_lng
-        );
+        const distance = calculateDistance(userLocation.lat, userLocation.lng, task.location_lat, task.location_lng);
         return distance <= 50;
       });
     }
 
-    setTasks(filteredTasks);
+    setTasks(filtered);
   };
 
   const handleCreateTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsCreating(true);
+    if (!userLocation) {
+      toast({ title: "Location needed", description: "Please allow location access first", variant: "destructive" });
+      return;
+    }
 
+    setIsCreating(true);
     const formData = new FormData(e.currentTarget);
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const paymentAmount = formData.get('payment') as string;
-    const locationAddress = formData.get('location') as string;
 
     try {
       const { error } = await supabase.from('tasks').insert({
@@ -177,27 +157,41 @@ const Tasks = () => {
         title,
         description,
         payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-        location_address: locationAddress,
-        location_lat: userLocation?.lat,
-        location_lng: userLocation?.lng,
+        location_lat: userLocation.lat,
+        location_lng: userLocation.lng,
+        location_address: "My current location",
         status: 'open',
       });
 
       if (error) throw error;
 
-      toast({
-        title: 'Task created!',
-        description: 'Your task has been posted to the board.',
-      });
+      toast({ title: "Task posted!", description: "Live in your area" });
       setDialogOpen(false);
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskToDelete.id)
+        .eq('creator_id', user?.id);
+
+      if (error) throw error;
+
+      toast({ title: "Task deleted", description: "Removed from the board" });
+      setDeleteDialogOpen(false);
+      setTaskToDelete(null);
+      fetchTasks();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -207,19 +201,10 @@ const Tasks = () => {
         .from('tasks')
         .update({ accepted_by: user?.id, status: 'in_progress' })
         .eq('id', taskId);
-
       if (error) throw error;
-
-      toast({
-        title: 'Task accepted!',
-        description: 'You can now work on this task.',
-      });
+      toast({ title: "Task accepted!" });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -232,178 +217,150 @@ const Tasks = () => {
         .from('tasks')
         .update({ status: 'completed' })
         .eq('id', taskId);
-
       if (error) throw error;
 
-      toast({
-        title: 'Task completed!',
-        description: 'Great work!',
-      });
+      toast({ title: "Task completed!" });
 
-      // If user is the creator, prompt them to rate the worker
       if (task.creator_id === user?.id && task.accepted_by) {
         setTaskToRate(task);
         setRatingDialogOpen(true);
       }
-
       fetchTasks();
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleSubmitRating = async (rating: number, comment: string) => {
-    if (!taskToRate || !taskToRate.accepted_by) return;
-
+    if (!taskToRate?.accepted_by) return;
     try {
-      const { error } = await supabase
-        .from('task_ratings')
-        .insert({
-          task_id: taskToRate.id,
-          rated_user_id: taskToRate.accepted_by,
-          rater_id: user?.id,
-          rating,
-          comment: comment || null,
-        });
-
+      const { error } = await supabase.from('task_ratings').insert({
+        task_id: taskToRate.id,
+        rated_user_id: taskToRate.accepted_by,
+        rater_id: user?.id,
+        rating,
+        comment: comment || null,
+      });
       if (error) throw error;
-
-      toast({
-        title: 'Rating submitted!',
-        description: 'Thank you for your feedback.',
-      });
+      toast({ title: "Thank you!", description: "Rating submitted" });
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const openTaskMap = (task: Task) => {
+    if (!task.location_lat || !task.location_lng) return;
     setSelectedTask(task);
     setMapDialogOpen(true);
-    
-    setTimeout(() => {
-      if (!mapContainer.current || !task.location_lat || !task.location_lng) return;
-      
-      const mapboxToken = import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN;
-      if (!mapboxToken) {
-        toast({
-          title: 'Map Error',
-          description: 'Map service is not configured.',
-          variant: 'destructive',
-        });
-        return;
-      }
 
-      mapboxgl.accessToken = mapboxToken;
-      
-      if (map.current) {
-        map.current.remove();
-      }
+    setTimeout(() => {
+      if (!mapContainer.current) return;
+      if (map.current) map.current.remove();
 
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: [task.location_lng, task.location_lat],
-        zoom: 15,
+        center: [task.location_lng!, task.location_lat!],
+        zoom: 17,
       });
 
-      new mapboxgl.Marker({ color: '#ff4444' })
-        .setLngLat([task.location_lng, task.location_lat])
-        .setPopup(new mapboxgl.Popup().setHTML(`<strong>${task.title}</strong>`))
-        .addTo(map.current);
+      new mapboxgl.Marker({ color: '#dc2626' })
+        .setLngLat([task.location_lng!, task.location_lat!])
+        .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<h3 class="font-bold">${task.title}</h3>`))
+        .addTo(map.current!)
+        .togglePopup();
 
       if (userLocation) {
-        new mapboxgl.Marker({ color: '#4444ff' })
+        new mapboxgl.Marker({ color: '#2563eb' })
           .setLngLat([userLocation.lng, userLocation.lat])
-          .setPopup(new mapboxgl.Popup().setHTML('<strong>Your Location</strong>'))
-          .addTo(map.current);
+          .setPopup(new mapboxgl.Popup().setHTML('<p class="font-medium text-blue-600">You are here</p>'))
+          .addTo(map.current!);
       }
 
-      map.current.addControl(new mapboxgl.NavigationControl());
-    }, 100);
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current.addControl(new mapboxgl.FullscreenControl());
+
+      if (userLocation) {
+        const bounds = new mapboxgl.LngLatBounds();
+        bounds.extend([task.location_lng!, task.location_lat!]);
+        bounds.extend([userLocation.lng, userLocation.lat]);
+        map.current!.fitBounds(bounds, { padding: 100, duration: 1500 });
+      }
+    }, 150);
   };
 
   const getDirections = (task: Task) => {
     if (!task.location_lat || !task.location_lng) return;
-    if (userLocation) {
-      window.open(
-        `https://www.google.com/maps/dir/?api=1&origin=${userLocation.lat},${userLocation.lng}&destination=${task.location_lat},${task.location_lng}`,
-        '_blank'
-      );
-    } else {
-      window.open(
-        `https://www.google.com/maps/search/?api=1&query=${task.location_lat},${task.location_lng}`,
-        '_blank'
-      );
-    }
+    const origin = userLocation ? `${userLocation.lat},${userLocation.lng}` : '';
+    const url = origin
+      ? `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${task.location_lat},${task.location_lng}&travelmode=walking`
+      : `https://www.google.com/maps/search/?api=1&query=${task.location_lat},${task.location_lng}`;
+    window.open(url, '_blank');
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-cyan-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#2ec2b3] border-t-transparent"></div>
+        <p className="mt-4 text-[#2ec2b3] font-semibold">Loading tasks...</p>
+      </div>
+    </div>
+  );
+
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="bg-background border-b shadow-soft">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
+      {/* Top Bar */}
+      <header className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="hover:bg-teal-50 rounded-xl">
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-2xl font-bold">Task Board</h1>
+              <h1 className="text-3xl font-bold text-[#2ec2b3] flex items-center gap-3">
+                <ClipboardList className="h-8 w-8" />
+                Task Board
+              </h1>
             </div>
+
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button className="bg-[#2ec2b3] hover:bg-[#28a399] text-white rounded-xl shadow-lg">
+                  <Plus className="h-5 w-5 mr-2" />
                   Create Task
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Create a New Task</DialogTitle>
-                  <DialogDescription>
-                    Post a task that others in your community can help with
-                  </DialogDescription>
+                  <DialogTitle>Create New Task</DialogTitle>
+                  <DialogDescription>Post a task using your current location</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleCreateTask} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input id="title" name="title" required placeholder="e.g., Help move furniture" />
+                <form onSubmit={handleCreateTask} className="space-y-4 mt-4">
+                  <div>
+                    <Label>Title</Label>
+                    <Input name="title" required placeholder="e.g., Help carry groceries" className="mt-1" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      required
-                      placeholder="Provide details about the task..."
-                      className="min-h-[100px]"
-                    />
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea name="description" required placeholder="What needs to be done?" className="min-h-32 mt-1" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="payment">Payment Amount (₱)</Label>
-                    <Input id="payment" name="payment" type="number" step="0.01" placeholder="Optional" />
+                  <div>
+                    <Label>Payment (₱) <span className="text-gray-400 text-xs">(optional)</span></Label>
+                    <Input name="payment" type="number" step="0.01" placeholder="50.00" className="mt-1" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input id="location" name="location" placeholder="Your address" />
+
+                  <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                    <Locate className="h-6 w-6 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-800">Using your current location</p>
+                      <p className="text-xs text-green-600">Only people within 50m can see this task</p>
+                    </div>
                   </div>
-                  {userLocation && (
-                    <p className="text-sm text-muted-foreground">
-                      Your GPS location will be saved with this task for local filtering.
-                    </p>
-                  )}
-                  <Button type="submit" disabled={isCreating} className="w-full">
-                    {isCreating ? 'Creating...' : 'Create Task'}
+
+                  <Button type="submit" disabled={isCreating || !userLocation} className="w-full bg-[#2ec2b3] hover:bg-[#28a399]">
+                    {isCreating ? 'Posting...' : 'Post Task Now'}
                   </Button>
                 </form>
               </DialogContent>
@@ -412,153 +369,160 @@ const Tasks = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {!userLocation && (
-          <Card className="mb-6 shadow-soft border-accent">
-            <CardContent className="py-4">
-              <p className="text-sm text-muted-foreground">
-                <MapPin className="inline h-4 w-4 mr-2" />
-                Location services are disabled. Enable location to see tasks within 50 meters.
-              </p>
+          <Card className="mb-6 border-orange-200 bg-orange-50">
+            <CardContent className="py-4 flex items-center gap-3">
+              <MapPin className="h-5 w-5 text-orange-600" />
+              <p className="text-sm text-orange-800">Enable location to post & see tasks nearby</p>
             </CardContent>
           </Card>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {tasks.length === 0 ? (
-            <Card className="col-span-full shadow-soft">
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <p>No tasks available in your area</p>
-              </CardContent>
-            </Card>
-          ) : (
-            tasks.map((task) => (
-              <Card key={task.id} className="shadow-soft hover:shadow-medium transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{task.title}</CardTitle>
-                      <CardDescription>
-                        Posted by {task.profiles.full_name} •{' '}
-                        {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-                      </CardDescription>
-                      {task.status === 'in_progress' && task.accepter && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Accepted by {task.accepter.full_name}
-                        </p>
-                      )}
-                    </div>
-                    {task.status === 'in_progress' && (
-                      <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
-                        Pending Task
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm">{task.description}</p>
-                  {task.payment_amount && (
-                    <div className="flex items-center text-primary font-semibold">
-                      <DollarSign className="h-4 w-4 mr-1" />₱{task.payment_amount.toFixed(2)}
-                    </div>
-                  )}
-                  {task.location_address && (
-                    <div className="space-y-2">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {task.location_address}
-                      </div>
-                      {task.location_lat && task.location_lng && (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openTaskMap(task)}
-                            className="flex-1"
-                          >
-                            <MapPin className="h-3 w-3 mr-1" />
-                            View Map
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => getDirections(task)}
-                            className="flex-1"
-                          >
-                            <Navigation className="h-3 w-3 mr-1" />
-                            Get Directions
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="pt-2">
-                    {task.status === 'open' && task.creator_id !== user.id && (
-                      <Button onClick={() => handleAcceptTask(task.id)} className="w-full">
-                        Accept Task
-                      </Button>
-                    )}
-                    {task.status === 'in_progress' && task.accepted_by === user.id && (
-                      <Button onClick={() => handleCompleteTask(task.id)} className="w-full">
-                        <Check className="h-4 w-4 mr-2" />
-                        Mark Complete
-                      </Button>
-                    )}
-                    {task.status === 'in_progress' && task.creator_id === user.id && (
-                      <Button onClick={() => handleCompleteTask(task.id)} className="w-full">
-                        <Check className="h-4 w-4 mr-2" />
-                        Mark as Done
-                      </Button>
-                    )}
-                    {task.status === 'completed' && (
-                      <div className="space-y-2">
-                        <div className="text-center py-2 bg-primary/10 rounded text-primary font-medium">
-                          Completed
-                        </div>
-                        {task.creator_id === user.id && task.accepted_by && (
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setTaskToRate(task);
-                              setRatingDialogOpen(true);
-                            }}
-                            className="w-full"
-                          >
-                            <Star className="h-4 w-4 mr-2" />
-                            Rate Worker
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    {task.creator_id === user.id && task.status === 'open' && (
-                      <div className="text-center py-2 bg-muted rounded text-muted-foreground">
-                        Your Task
-                      </div>
-                    )}
-                  </div>
+        <ScrollArea className="h-[calc(100vh-200px)] pr-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {tasks.length === 0 ? (
+              <Card className="col-span-full">
+                <CardContent className="py-24 text-center">
+                  <ClipboardList className="h-20 w-20 mx-auto text-gray-300 mb-4" />
+                  <p className="text-xl text-gray-600">No tasks nearby</p>
+                  <p className="text-sm text-gray-400 mt-2">Be the first to post one!</p>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
-      </div>
+            ) : (
+              tasks.map((task) => (
+                <Card key={task.id} className="shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-[#2ec2b3]/5 to-cyan-50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-xl">{task.title}</CardTitle>
+                        <CardDescription>
+                          by <strong>{task.profiles.full_name}</strong> · {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+                        </CardDescription>
+                        {task.accepter && <p className="text-sm text-[#2ec2b3] font-medium mt-1">Accepted by {task.accepter.full_name}</p>}
+                      </div>
+                      {task.status === 'in_progress' && <Badge className="bg-yellow-100 text-yellow-800">In Progress</Badge>}
+                      {task.status === 'completed' && <Badge className="bg-green-100 text-green-800">Completed</Badge>}
+                    </div>
+                  </CardHeader>
 
+                  <CardContent className="pt-4 space-y-4">
+                    <p className="text-gray-700 leading-relaxed">{task.description}</p>
+
+                    {task.payment_amount && (
+                      <div className="flex items-center font-bold text-[#2ec2b3] text-lg">
+                        <DollarSign className="h-5 w-5" />
+                        ₱{task.payment_amount.toFixed(2)}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 text-[#2ec2b3]" />
+                      <span>Nearby location</span>
+                    </div>
+
+                    {task.location_lat && task.location_lng && (
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openTaskMap(task)} className="flex-1">
+                          <MapPin className="h-4 w-4 mr-1" /> Map
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => getDirections(task)} className="flex-1">
+                          <Navigation className="h-4 w-4 mr-1" /> Directions
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t space-y-3">
+                      {/* Your own task controls */}
+                      {task.creator_id === user.id && task.status === 'open' && (
+                        <div className="flex gap-2">
+                          <Button variant="destructive" size="sm" onClick={() => { setTaskToDelete(task); setDeleteDialogOpen(true); }} className="flex-1">
+                            <Trash2 className="h-4 w-4 mr-1" /> Delete
+                          </Button>
+                        </div>
+                      )}
+
+                      {task.status === 'open' && task.creator_id !== user.id && (
+                        <Button onClick={() => handleAcceptTask(task.id)} className="w-full bg-[#2ec2b3] hover:bg-[#28a399]">
+                          Accept Task
+                        </Button>
+                      )}
+                      {task.status === 'in_progress' && task.accepted_by === user.id && (
+                        <Button onClick={() => handleCompleteTask(task.id)} className="w-full bg-green-600 hover:bg-green-700">
+                          <Check className="h-4 w-4 mr-2" /> Mark Complete
+                        </Button>
+                      )}
+                      {task.status === 'in_progress' && task.creator_id === user.id && (
+                        <Button onClick={() => handleCompleteTask(task.id)} className="w-full bg-green-600 hover:bg-green-700">
+                          <Check className="h-4 w-4 mr-2" /> Confirm Done
+                        </Button>
+                      )}
+                      {task.status === 'completed' && task.creator_id === user.id && (
+                        <Button variant="outline" onClick={() => { setTaskToRate(task); setRatingDialogOpen(true); }} className="w-full border-[#2ec2b3] text-[#2ec2b3] hover:bg-teal-50">
+                          <Star className="h-4 w-4 mr-2" /> Rate Worker
+                        </Button>
+                      )}
+                      {task.creator_id === user.id && task.status !== 'open' && (
+                        <div className="text-center py-3 bg-teal-50 rounded-lg text-[#2ec2b3] font-medium">Your Task</div>
+                      )}
+                      {task.status === 'completed' && (
+                        <div className="text-center py-3 bg-green-50 rounded-lg text-green-700 font-medium">Task Completed</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </main>
+
+      {/* Map Dialog */}
       <Dialog open={mapDialogOpen} onOpenChange={setMapDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{selectedTask?.title}</DialogTitle>
-            <DialogDescription>{selectedTask?.location_address}</DialogDescription>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="p-6 bg-gradient-to-r from-[#2ec2b3]/10 to-cyan-50">
+            <DialogTitle className="text-2xl">{selectedTask?.title}</DialogTitle>
+            <DialogDescription className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Nearby location
+            </DialogDescription>
           </DialogHeader>
-          <div ref={mapContainer} className="w-full h-[500px] rounded-lg" />
+          <div ref={mapContainer} className="w-full h-96 md:h-[500px]" />
+          <div className="p-4 bg-gray-50 border-t">
+            <Button onClick={() => getDirections(selectedTask!)} className="w-full bg-[#2ec2b3] hover:bg-[#28a399]">
+              <Navigation className="h-5 w-5 mr-2" />
+              Get Walking Directions
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The task will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask} className="bg-red-600 hover:bg-red-700">
+              Delete Task
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Rating Dialog */}
       {taskToRate && (
         <TaskRatingDialog
           open={ratingDialogOpen}
           onOpenChange={setRatingDialogOpen}
           onSubmit={handleSubmitRating}
-          userName={taskToRate.accepter?.full_name || 'Worker'}
+          userName={taskToRate.accepter?.full_name || 'the helper'}
         />
       )}
     </div>

@@ -46,7 +46,7 @@ All colors MUST be HSL.
     --radius: 0.75rem;
 
     /* Gradient definitions */
-    --gradient-hero: linear-gradient(135deg, hsl(174, 62%, 47%), hsl(174, 80%, 60%));
+    --gradient-hero: linear-gradient(135deg, lab(71.16% -40.81 -3.33), hsl(174, 80%, 60%));
     --gradient-warm: linear-gradient(135deg, hsl(14, 90%, 71%), hsl(45, 93%, 72%));
     --gradient-subtle: linear-gradient(180deg, hsl(0, 0%, 100%), hsl(174, 20%, 98%));
 
