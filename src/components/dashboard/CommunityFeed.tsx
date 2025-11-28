@@ -9,7 +9,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Image, Video } from 'lucide-react';
 import { PostCard } from './PostCard';
-
 interface Post {
   id: string;
   content: string;
@@ -21,96 +20,95 @@ interface Post {
     avatar_url: string | null;
   };
 }
-
 const CommunityFeed = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPost, setNewPost] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [showNewPost, setShowNewPost] = useState(false);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const { user } = useAuth();
-  const { toast } = useToast();
-
+  const {
+    user
+  } = useAuth();
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
     fetchPosts();
-
-    const channel = supabase
-      .channel('posts-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'posts' },
-        () => {
-          fetchPosts();
-        }
-      )
-      .subscribe();
-
+    const channel = supabase.channel('posts-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'posts'
+    }, () => {
+      fetchPosts();
+    }).subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
-
   const fetchPosts = async () => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
+    const {
+      data,
+      error
+    } = await supabase.from('posts').select(`
         *,
         profiles (
           full_name,
           avatar_url
         )
-      `)
-      .eq('status', 'approved')
-      .order('created_at', { ascending: false });
-
+      `).eq('status', 'approved').order('created_at', {
+      ascending: false
+    });
     if (error) {
       console.error('Error fetching posts:', error);
       return;
     }
-
     setPosts(data as Post[]);
   };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const maxSize = 50 * 1024 * 1024;
-
       if (file.size > maxSize) {
-        toast({ title: 'Error', description: 'File size must be less than 50MB', variant: 'destructive' });
+        toast({
+          title: 'Error',
+          description: 'File size must be less than 50MB',
+          variant: 'destructive'
+        });
         return;
       }
-
       if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-        toast({ title: 'Error', description: 'Only images and videos are allowed', variant: 'destructive' });
+        toast({
+          title: 'Error',
+          description: 'Only images and videos are allowed',
+          variant: 'destructive'
+        });
         return;
       }
-
       setMediaFile(file);
     }
   };
-
   const uploadMedia = async () => {
     if (!mediaFile || !user) return null;
-
     const fileExt = mediaFile.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage.from('message-media').upload(fileName, mediaFile);
+    const {
+      error: uploadError
+    } = await supabase.storage.from('message-media').upload(fileName, mediaFile);
     if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage.from('message-media').getPublicUrl(fileName);
-    return { url: data.publicUrl, type: mediaFile.type };
+    const {
+      data
+    } = supabase.storage.from('message-media').getPublicUrl(fileName);
+    return {
+      url: data.publicUrl,
+      type: mediaFile.type
+    };
   };
-
   const handleCreatePost = async () => {
     if (!newPost.trim()) return;
-
     setIsPosting(true);
     try {
       let mediaUrl = null;
       let mediaType = null;
-
       if (mediaFile) {
         const media = await uploadMedia();
         if (media) {
@@ -118,51 +116,46 @@ const CommunityFeed = () => {
           mediaType = media.type;
         }
       }
-
-      const { error } = await supabase.from('posts').insert({
+      const {
+        error
+      } = await supabase.from('posts').insert({
         user_id: user?.id,
         content: newPost,
         status: 'pending',
         image_url: mediaUrl,
-        media_type: mediaType,
+        media_type: mediaType
       });
-
       if (error) throw error;
-
-      toast({ title: 'Post submitted!', description: 'Your post is pending approval from barangay officials.' });
+      toast({
+        title: 'Post submitted!',
+        description: 'Your post is pending approval from barangay officials.'
+      });
       setNewPost('');
       setMediaFile(null);
       setShowNewPost(false);
     } catch (err) {
       const error = err as Error;
-      toast({ title: 'Error', description: error?.message ?? 'An error occurred', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: error?.message ?? 'An error occurred',
+        variant: 'destructive'
+      });
     } finally {
       setIsPosting(false);
     }
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Community Feed</h2>
-        <button
-          onClick={() => setShowNewPost(!showNewPost)}
-          className="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-4 py-2 shadow-md"
-        >
+        <h2 className="text-2xl font-bold">News Feed</h2>
+        <button onClick={() => setShowNewPost(!showNewPost)} className="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-4 py-2 shadow-md">
           <Plus className="h-4 w-4" />
           {showNewPost ? 'Cancel' : 'New Post'}
         </button>
       </div>
 
-      {showNewPost && (
-        <Card className="shadow-soft">
+      {showNewPost && <Card className="shadow-soft">
           <CardContent className="space-y-4">
-            <Textarea
-              placeholder="Share something with your community..."
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              className="min-h-[100px] rounded-lg"
-            />
+            <Textarea placeholder="Share something with your community..." value={newPost} onChange={e => setNewPost(e.target.value)} className="min-h-[100px] rounded-lg" />
             <div className="space-y-2">
               <Label>Attach Media (optional)</Label>
               <div className="flex gap-2">
@@ -175,11 +168,9 @@ const CommunityFeed = () => {
                     </span>
                   </Button>
                 </Label>
-                {mediaFile && (
-                  <Button type="button" variant="outline" onClick={() => setMediaFile(null)}>
+                {mediaFile && <Button type="button" variant="outline" onClick={() => setMediaFile(null)}>
                     Clear
-                  </Button>
-                )}
+                  </Button>}
               </div>
             </div>
             <Button onClick={handleCreatePost} disabled={isPosting || !newPost.trim()} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
@@ -187,23 +178,15 @@ const CommunityFeed = () => {
             </Button>
             <p className="text-sm text-muted-foreground">Your post will be reviewed by barangay officials before appearing in the feed.</p>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       <div className="space-y-4">
-        {posts.length === 0 ? (
-          <Card className="shadow-soft">
+        {posts.length === 0 ? <Card className="shadow-soft">
             <CardContent className="py-12 text-center text-muted-foreground">
               <p>No posts yet. Be the first to share something!</p>
             </CardContent>
-          </Card>
-        ) : (
-          posts.map((post) => <PostCard key={post.id} post={post} currentUserId={user?.id || ''} />)
-        )}
+          </Card> : posts.map(post => <PostCard key={post.id} post={post} currentUserId={user?.id || ''} />)}
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default CommunityFeed;
- 
