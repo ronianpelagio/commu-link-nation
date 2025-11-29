@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Check, X, Send } from 'lucide-react';
+import { ArrowLeft, Check, X, Send, ClipboardList } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PendingPost {
@@ -211,21 +211,51 @@ const AdminDashboard = () => {
   if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="bg-background border-b shadow-soft">
+    <div className="min-h-screen bg-gradient-subtle pb-20 md:pb-8">
+      <header className="bg-background border-b shadow-soft sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">
+            <h1 className="text-xl sm:text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">
               Admin Dashboard
             </h1>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      {/* Stats Overview */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <Card className="shadow-medium bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending Posts</p>
+                  <p className="text-3xl font-bold text-primary">{pendingPosts.length}</p>
+                </div>
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <ClipboardList className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-medium bg-gradient-to-br from-secondary/5 to-transparent">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Open Requests</p>
+                  <p className="text-3xl font-bold text-secondary">{approaches.length}</p>
+                </div>
+                <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center">
+                  <Send className="h-6 w-6 text-secondary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Tabs defaultValue="posts" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="posts">

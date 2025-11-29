@@ -127,19 +127,19 @@ const Profile = () => {
   if (!user || !profile) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-gradient-subtle pb-20 md:pb-8">
       <header className="bg-background border-b shadow-soft">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-2xl font-bold">Profile</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Profile</h1>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-2xl">
         <Card className="shadow-medium">
           <CardHeader>
             <CardTitle>Edit Profile</CardTitle>

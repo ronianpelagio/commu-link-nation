@@ -265,14 +265,14 @@ const Messages = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 pb-20 md:pb-8">
       <header className="bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#2ec2b3] flex items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#2ec2b3] flex items-center gap-2 sm:gap-3">
               <MessageCircle className="h-6 w-6 sm:h-8 sm:w-8" /> Messages
             </h1>
           </div>
