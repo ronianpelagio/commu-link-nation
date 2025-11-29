@@ -384,94 +384,92 @@ const Tasks = () => {
           </Card>
         )}
 
-        <ScrollArea className="h-[calc(100vh-160px)] sm:h-[calc(100vh-200px)] pr-2 sm:pr-4">
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <ScrollArea className="h-[calc(100vh-140px)] sm:h-[calc(100vh-180px)] pr-1 sm:pr-4">
+          <div className="grid gap-3 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {tasks.length === 0 ? (
               <Card className="col-span-full">
-                <CardContent className="py-24 text-center">
-                  <ClipboardList className="h-20 w-20 mx-auto text-gray-300 mb-4" />
-                  <p className="text-xl text-gray-600">No tasks nearby</p>
-                  <p className="text-sm text-gray-400 mt-2">Be the first to post one!</p>
+                <CardContent className="py-12 sm:py-20 text-center">
+                  <ClipboardList className="h-14 w-14 sm:h-20 sm:w-20 mx-auto text-gray-300 mb-3" />
+                  <p className="text-base sm:text-xl text-gray-600">No tasks nearby</p>
+                  <p className="text-xs sm:text-sm text-gray-400 mt-1">Be the first to post one!</p>
                 </CardContent>
               </Card>
             ) : (
               tasks.map((task) => (
-                <Card key={task.id} className="shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden">
-                  <CardHeader className="bg-gradient-to-r from-[#2ec2b3]/5 to-cyan-50">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-xl">{task.title}</CardTitle>
-                        <CardDescription>
-                          by <strong>{task.profiles.full_name}</strong> · {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+                <Card key={task.id} className="shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden">
+                  <CardHeader className="bg-gradient-to-r from-[#2ec2b3]/5 to-cyan-50 p-3 sm:p-4">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-base sm:text-lg truncate">{task.title}</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm mt-0.5">
+                          by <strong className="truncate">{task.profiles.full_name}</strong> · {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
                         </CardDescription>
-                        {task.accepter && <p className="text-sm text-[#2ec2b3] font-medium mt-1">Accepted by {task.accepter.full_name}</p>}
+                        {task.accepter && <p className="text-xs sm:text-sm text-[#2ec2b3] font-medium mt-1 truncate">Accepted by {task.accepter.full_name}</p>}
                       </div>
-                      {task.status === 'in_progress' && <Badge className="bg-yellow-100 text-yellow-800">In Progress</Badge>}
-                      {task.status === 'completed' && <Badge className="bg-green-100 text-green-800">Completed</Badge>}
+                      {task.status === 'in_progress' && <Badge className="bg-yellow-100 text-yellow-800 text-[10px] sm:text-xs flex-shrink-0">In Progress</Badge>}
+                      {task.status === 'completed' && <Badge className="bg-green-100 text-green-800 text-[10px] sm:text-xs flex-shrink-0">Completed</Badge>}
                     </div>
                   </CardHeader>
 
-                  <CardContent className="pt-4 space-y-4">
-                    <p className="text-gray-700 leading-relaxed">{task.description}</p>
+                  <CardContent className="p-3 sm:p-4 pt-3 space-y-3">
+                    <p className="text-gray-700 leading-relaxed text-sm line-clamp-3">{task.description}</p>
 
                     {task.payment_amount && (
-                      <div className="flex items-center font-bold text-[#2ec2b3] text-lg">
-                        <DollarSign className="h-5 w-5" />
+                      <div className="flex items-center font-bold text-[#2ec2b3] text-base sm:text-lg">
+                        <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                         ₱{task.payment_amount.toFixed(2)}
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <MapPin className="h-4 w-4 text-[#2ec2b3]" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                      <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#2ec2b3]" />
                       <span>Nearby location</span>
                     </div>
 
                     {task.location_lat && task.location_lng && (
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => openTaskMap(task)} className="flex-1">
-                          <MapPin className="h-4 w-4 mr-1" /> Map
+                        <Button size="sm" variant="outline" onClick={() => openTaskMap(task)} className="flex-1 text-xs sm:text-sm h-8 sm:h-9">
+                          <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Map
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => getDirections(task)} className="flex-1">
-                          <Navigation className="h-4 w-4 mr-1" /> Directions
+                        <Button size="sm" variant="outline" onClick={() => getDirections(task)} className="flex-1 text-xs sm:text-sm h-8 sm:h-9">
+                          <Navigation className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Go
                         </Button>
                       </div>
                     )}
 
-                    <div className="pt-4 border-t space-y-3">
+                    <div className="pt-3 border-t space-y-2">
                       {/* Your own task controls */}
                       {task.creator_id === user.id && task.status === 'open' && (
-                        <div className="flex gap-2">
-                          <Button variant="destructive" size="sm" onClick={() => { setTaskToDelete(task); setDeleteDialogOpen(true); }} className="flex-1">
-                            <Trash2 className="h-4 w-4 mr-1" /> Delete
-                          </Button>
-                        </div>
+                        <Button variant="destructive" size="sm" onClick={() => { setTaskToDelete(task); setDeleteDialogOpen(true); }} className="w-full text-xs sm:text-sm h-8 sm:h-9">
+                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Delete Task
+                        </Button>
                       )}
 
                       {task.status === 'open' && task.creator_id !== user.id && (
-                        <Button onClick={() => handleAcceptTask(task.id)} className="w-full bg-[#2ec2b3] hover:bg-[#28a399]">
+                        <Button onClick={() => handleAcceptTask(task.id)} className="w-full bg-[#2ec2b3] hover:bg-[#28a399] text-xs sm:text-sm h-8 sm:h-9">
                           Accept Task
                         </Button>
                       )}
                       {task.status === 'in_progress' && task.accepted_by === user.id && (
-                        <Button onClick={() => handleCompleteTask(task.id)} className="w-full bg-green-600 hover:bg-green-700">
-                          <Check className="h-4 w-4 mr-2" /> Mark Complete
+                        <Button onClick={() => handleCompleteTask(task.id)} className="w-full bg-green-600 hover:bg-green-700 text-xs sm:text-sm h-8 sm:h-9">
+                          <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" /> Mark Complete
                         </Button>
                       )}
                       {task.status === 'in_progress' && task.creator_id === user.id && (
-                        <Button onClick={() => handleCompleteTask(task.id)} className="w-full bg-green-600 hover:bg-green-700">
-                          <Check className="h-4 w-4 mr-2" /> Confirm Done
+                        <Button onClick={() => handleCompleteTask(task.id)} className="w-full bg-green-600 hover:bg-green-700 text-xs sm:text-sm h-8 sm:h-9">
+                          <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" /> Confirm Done
                         </Button>
                       )}
                       {task.status === 'completed' && task.creator_id === user.id && (
-                        <Button variant="outline" onClick={() => { setTaskToRate(task); setRatingDialogOpen(true); }} className="w-full border-[#2ec2b3] text-[#2ec2b3] hover:bg-teal-50">
-                          <Star className="h-4 w-4 mr-2" /> Rate Worker
+                        <Button variant="outline" onClick={() => { setTaskToRate(task); setRatingDialogOpen(true); }} className="w-full border-[#2ec2b3] text-[#2ec2b3] hover:bg-teal-50 text-xs sm:text-sm h-8 sm:h-9">
+                          <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" /> Rate Worker
                         </Button>
                       )}
                       {task.creator_id === user.id && task.status !== 'open' && (
-                        <div className="text-center py-3 bg-teal-50 rounded-lg text-[#2ec2b3] font-medium">Your Task</div>
+                        <div className="text-center py-2 bg-teal-50 rounded-lg text-[#2ec2b3] font-medium text-xs sm:text-sm">Your Task</div>
                       )}
                       {task.status === 'completed' && (
-                        <div className="text-center py-3 bg-green-50 rounded-lg text-green-700 font-medium">Task Completed</div>
+                        <div className="text-center py-2 bg-green-50 rounded-lg text-green-700 font-medium text-xs sm:text-sm">Task Completed</div>
                       )}
                     </div>
                   </CardContent>

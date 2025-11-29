@@ -239,8 +239,8 @@ const Friends = () => {
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#2ec2b3] mx-auto"></div>
-        <p className="mt-4 text-[#2ec2b3] font-semibold">Loading friends...</p>
+        <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-[#2ec2b3] mx-auto"></div>
+        <p className="mt-3 text-[#2ec2b3] font-semibold text-sm">Loading...</p>
       </div>
     </div>
   );
@@ -251,60 +251,48 @@ const Friends = () => {
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 pb-20 md:pb-8">
       {/* Top Navigation */}
       <header className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(-1)}
-                className="hover:bg-teal-50 rounded-xl"
-              >
-                <ArrowLeft className="h-5 w-5" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-12 sm:h-16">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-teal-50 rounded-xl h-9 w-9">
+                <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#2ec2b3] flex items-center gap-2 sm:gap-3">
-                <Users className="h-6 w-6 sm:h-8 sm:w-8" />
-                Friends
+              <h1 className="text-lg sm:text-2xl font-bold text-[#2ec2b3] flex items-center gap-2">
+                <Users className="h-5 w-5 sm:h-7 sm:w-7" />
+                <span className="hidden sm:inline">Friends</span>
               </h1>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* People You May Know */}
         {suggestions.length > 0 && (
-          <Card className="mb-8 border border-[#2ec2b3]/20 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-[#2ec2b3]">
-                <Sparkles className="h-5 w-5" />
+          <Card className="mb-4 sm:mb-6 border border-[#2ec2b3]/20 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-[#2ec2b3] text-base sm:text-lg">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                 People You May Know
               </CardTitle>
-              <CardDescription>Connect with others in your community</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Connect with others in your community</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
+            <CardContent className="grid gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-2 p-3 sm:p-6 pt-0 sm:pt-0">
               {suggestions.map((person) => (
-                <div
-                  key={person.id}
-                  className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12 ring-2 ring-[#2ec2b3]/20">
+                <div key={person.id} className="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <Avatar className="h-10 w-10 ring-2 ring-[#2ec2b3]/20 flex-shrink-0">
                       <AvatarImage src={person.avatar_url || ''} />
-                      <AvatarFallback className="bg-[#2ec2b3] text-white text-lg">
+                      <AvatarFallback className="bg-[#2ec2b3] text-white text-sm">
                         {person.full_name[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <p className="font-semibold text-gray-900">{person.full_name}</p>
-                      <p className="text-xs text-gray-500">In your barangay</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{person.full_name}</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500">In your barangay</p>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSendRequest(person.id)}
-                    className="bg-[#2ec2b3] hover:bg-[#28a399] text-white"
-                  >
+                  <Button size="icon" onClick={() => handleSendRequest(person.id)} className="bg-[#2ec2b3] hover:bg-[#28a399] text-white h-8 w-8 flex-shrink-0">
                     <UserPlus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -315,49 +303,42 @@ const Friends = () => {
 
         {/* Main Tabs */}
         <Tabs defaultValue="friends" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6 bg-white rounded-xl shadow">
-            <TabsTrigger value="friends" className="data-[state=active]:bg-[#2ec2b3] data-[state=active]:text-white rounded-l-xl">
-              My Friends <Badge className="ml-2 bg-white/20 text-white">{friends.length}</Badge>
+          <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6 bg-white rounded-xl shadow h-auto p-1">
+            <TabsTrigger value="friends" className="data-[state=active]:bg-[#2ec2b3] data-[state=active]:text-white rounded-lg text-xs sm:text-sm py-2">
+              Friends <Badge className="ml-1 bg-white/20 text-xs hidden sm:inline">{friends.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="requests" className="data-[state=active]:bg-[#2ec2b3] data-[state=active]:text-white">
+            <TabsTrigger value="requests" className="data-[state=active]:bg-[#2ec2b3] data-[state=active]:text-white rounded-lg text-xs sm:text-sm py-2">
               Requests
-              {pendingRequests.length > 0 && (
-                <Badge className="ml-2 bg-red-500">{pendingRequests.length}</Badge>
-              )}
+              {pendingRequests.length > 0 && <Badge className="ml-1 bg-red-500 text-xs">{pendingRequests.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="add" className="data-[state=active]:bg-[#2ec2b3] data-[state=active]:text-white rounded-r-xl">
-              Add Friends
+            <TabsTrigger value="add" className="data-[state=active]:bg-[#2ec2b3] data-[state=active]:text-white rounded-lg text-xs sm:text-sm py-2">
+              Add
             </TabsTrigger>
           </TabsList>
 
           {/* My Friends */}
           <TabsContent value="friends">
             <Card className="border-gray-100">
-              <CardHeader>
-                <CardTitle>Your Friends</CardTitle>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Your Friends</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2 sm:space-y-3 p-3 sm:p-6 pt-0 sm:pt-0">
                 {friends.length === 0 ? (
-                  <div className="text-center py-16 text-gray-500">
-                    <Users className="h-20 w-20 mx-auto text-gray-300 mb-4" />
-                    <p className="text-lg">No friends yet. Start connecting!</p>
+                  <div className="text-center py-10 sm:py-16 text-gray-500">
+                    <Users className="h-14 w-14 sm:h-20 sm:w-20 mx-auto text-gray-300 mb-3" />
+                    <p className="text-sm sm:text-lg">No friends yet. Start connecting!</p>
                   </div>
                 ) : (
                   friends.map((friend) => (
-                    <div
-                      key={friend.id}
-                      className="flex items-center justify-between p-4 bg-gray-50/70 rounded-xl hover:bg-teal-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
+                    <div key={friend.id} className="flex items-center justify-between p-3 bg-gray-50/70 rounded-xl hover:bg-teal-50 transition-colors">
+                      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
                           <AvatarImage src={friend.profiles.avatar_url || ''} />
-                          <AvatarFallback className="bg-[#2ec2b3] text-white">
-                            {friend.profiles.full_name[0]}
-                          </AvatarFallback>
+                          <AvatarFallback className="bg-[#2ec2b3] text-white text-sm">{friend.profiles.full_name[0]}</AvatarFallback>
                         </Avatar>
-                        <span className="font-semibold text-gray-800">{friend.profiles.full_name}</span>
+                        <span className="font-semibold text-gray-800 text-sm truncate">{friend.profiles.full_name}</span>
                       </div>
-                      <Button variant="outline" size="sm" onClick={() => navigate('/messages')}>
+                      <Button variant="outline" size="sm" onClick={() => navigate('/messages')} className="text-xs h-8">
                         Message
                       </Button>
                     </div>
@@ -370,40 +351,27 @@ const Friends = () => {
           {/* Requests */}
           <TabsContent value="requests">
             <Card>
-              <CardHeader>
-                <CardTitle>Friend Requests</CardTitle>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Friend Requests</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2 sm:space-y-3 p-3 sm:p-6 pt-0 sm:pt-0">
                 {pendingRequests.length === 0 ? (
-                  <p className="text-center py-16 text-gray-500">No pending requests</p>
+                  <p className="text-center py-10 sm:py-16 text-gray-500 text-sm">No pending requests</p>
                 ) : (
                   pendingRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
-                    >
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
+                    <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
                           <AvatarImage src={request.profiles.avatar_url || ''} />
-                          <AvatarFallback className="bg-gray-300 text-gray-700">
-                            {request.profiles.full_name[0]}
-                          </AvatarFallback>
+                          <AvatarFallback className="bg-gray-300 text-gray-700 text-sm">{request.profiles.full_name[0]}</AvatarFallback>
                         </Avatar>
-                        <span className="font-semibold">{request.profiles.full_name}</span>
+                        <span className="font-semibold text-sm truncate">{request.profiles.full_name}</span>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleAcceptRequest(request.id)}
-                          className="bg-[#2ec2b3] hover:bg-[#28a399]"
-                        >
+                      <div className="flex gap-1.5">
+                        <Button size="icon" onClick={() => handleAcceptRequest(request.id)} className="bg-[#2ec2b3] hover:bg-[#28a399] h-8 w-8">
                           <Check className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRejectRequest(request.id)}
-                        >
+                        <Button size="icon" variant="outline" onClick={() => handleRejectRequest(request.id)} className="h-8 w-8">
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
@@ -417,40 +385,37 @@ const Friends = () => {
           {/* Add Friends */}
           <TabsContent value="add">
             <Card>
-              <CardHeader>
-                <CardTitle>Search People</CardTitle>
-                <CardDescription>Find friends by name</CardDescription>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Search People</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Find friends by name</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex gap-3">
+              <CardContent className="space-y-4 sm:space-y-6 p-3 sm:p-6 pt-0 sm:pt-0">
+                <div className="flex gap-2">
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Enter name..."
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    className="flex-1"
+                    className="flex-1 h-9 text-sm"
                   />
-                  <Button onClick={handleSearch} className="bg-[#2ec2b3] hover:bg-[#28a399]">
-                    <UserPlus className="h-5 w-5" />
+                  <Button onClick={handleSearch} size="icon" className="bg-[#2ec2b3] hover:bg-[#28a399] h-9 w-9">
+                    <UserPlus className="h-4 w-4" />
                   </Button>
                 </div>
 
                 {searchResults.length > 0 && (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {searchResults.map((profile) => (
-                      <div
-                        key={profile.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-teal-50 transition"
-                      >
-                        <div className="flex items-center gap-4">
-                          <Avatar>
+                      <div key={profile.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-teal-50 transition">
+                        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+                          <Avatar className="h-9 w-9 flex-shrink-0">
                             <AvatarImage src={profile.avatar_url || ''} />
-                            <AvatarFallback>{profile.full_name[0]}</AvatarFallback>
+                            <AvatarFallback className="text-sm">{profile.full_name[0]}</AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">{profile.full_name}</span>
+                          <span className="font-medium text-sm truncate">{profile.full_name}</span>
                         </div>
-                        <Button size="sm" onClick={() => handleSendRequest(profile.id)}>
-                          Send Request
+                        <Button size="sm" onClick={() => handleSendRequest(profile.id)} className="text-xs h-8">
+                          Add
                         </Button>
                       </div>
                     ))}

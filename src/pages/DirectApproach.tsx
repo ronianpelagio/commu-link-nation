@@ -196,95 +196,79 @@ const DirectApproach = () => {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-50 to-cyan-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-[#2ec2b3] mx-auto"></div>
+        <p className="mt-3 text-[#2ec2b3] font-semibold text-sm">Loading...</p>
+      </div>
+    </div>
+  );
+
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle pb-20 md:pb-8">
-      <header className="bg-background border-b shadow-soft">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 pb-20 md:pb-8">
+      <header className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="h-9 w-9">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-lg sm:text-2xl font-bold">Direct Approach to Barangay</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-[#2ec2b3]">Contact Barangay</h1>
             </div>
-            <Button onClick={() => setShowForm(!showForm)}>
-              <Send className="h-4 w-4 mr-2" />
-              {showForm ? 'Cancel' : 'New Request'}
+            <Button onClick={() => setShowForm(!showForm)} size="sm" className="text-xs sm:text-sm">
+              <Send className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{showForm ? 'Cancel' : 'New Request'}</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {showForm && (
-          <Card className="mb-6 shadow-soft">
-            <CardHeader>
-              <CardTitle>Submit a Request</CardTitle>
-              <CardDescription>
-                Contact barangay officials for assistance, concerns, or formal requests
+          <Card className="mb-4 sm:mb-6 shadow-md">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Submit a Request</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Contact barangay officials for assistance or concerns
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject</Label>
-                  <Input id="subject" name="subject" required placeholder="Brief description of your request" />
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="subject" className="text-sm">Subject</Label>
+                  <Input id="subject" name="subject" required placeholder="Brief description" className="h-9 text-sm" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="message">Message</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="message" className="text-sm">Message</Label>
                   <Textarea
                     id="message"
                     name="message"
                     required
-                    placeholder="Provide detailed information about your request..."
-                    className="min-h-[150px]"
+                    placeholder="Provide detailed information..."
+                    className="min-h-[100px] sm:min-h-[150px] text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Attach Image or Video (Optional)</Label>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Attach Media (Optional)</Label>
+                  <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFileSelect} className="hidden" />
                   {mediaFile ? (
-                    <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                      {mediaFile.type.startsWith('image/') ? (
-                        <Image className="h-5 w-5 text-muted-foreground" />
-                      ) : (
-                        <Video className="h-5 w-5 text-muted-foreground" />
-                      )}
-                      <span className="flex-1 truncate text-sm">{mediaFile.name}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setMediaFile(null);
-                          if (fileInputRef.current) fileInputRef.current.value = '';
-                        }}
-                      >
+                    <div className="flex items-center gap-2 p-2.5 bg-muted rounded-lg">
+                      {mediaFile.type.startsWith('image/') ? <Image className="h-4 w-4 text-muted-foreground" /> : <Video className="h-4 w-4 text-muted-foreground" />}
+                      <span className="flex-1 truncate text-xs sm:text-sm">{mediaFile.name}</span>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setMediaFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
                         Remove
                       </Button>
                     </div>
                   ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full"
-                    >
-                      <Image className="h-4 w-4 mr-2" />
-                      Choose File
+                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full h-9 text-sm">
+                      <Image className="h-4 w-4 mr-2" /> Choose File
                     </Button>
                   )}
                 </div>
-                <Button type="submit" disabled={isSubmitting || isUploading} className="w-full">
+                <Button type="submit" disabled={isSubmitting || isUploading} className="w-full h-9 text-sm">
                   {isSubmitting || isUploading ? 'Submitting...' : 'Submit Request'}
                 </Button>
               </form>
@@ -292,62 +276,52 @@ const DirectApproach = () => {
           </Card>
         )}
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Your Requests</h2>
+        <div className="space-y-3 sm:space-y-4">
+          <h2 className="text-base sm:text-xl font-semibold">Your Requests</h2>
           {approaches.length === 0 ? (
-            <Card className="shadow-soft">
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <p>No requests yet. Click "New Request" to contact barangay officials.</p>
+            <Card className="shadow-md">
+              <CardContent className="py-10 sm:py-12 text-center text-muted-foreground">
+                <p className="text-sm">No requests yet. Click "New Request" to contact officials.</p>
               </CardContent>
             </Card>
           ) : (
             approaches.map((approach) => (
-              <Card key={approach.id} className="shadow-soft">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{approach.subject}</CardTitle>
-                      <CardDescription>
+              <Card key={approach.id} className="shadow-md overflow-hidden">
+                <CardHeader className="p-3 sm:p-6">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <CardTitle className="text-sm sm:text-lg truncate">{approach.subject}</CardTitle>
+                      <CardDescription className="text-xs">
                         {formatDistanceToNow(new Date(approach.created_at), { addSuffix: true })}
                       </CardDescription>
                     </div>
-                    <Badge className={getStatusColor(approach.status)}>
+                    <Badge className={`${getStatusColor(approach.status)} text-[10px] sm:text-xs flex-shrink-0`}>
                       {approach.status.replace('_', ' ').toUpperCase()}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
                   <div>
-                    <p className="text-sm font-medium mb-1">Your Request:</p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{approach.message}</p>
+                    <p className="text-xs font-medium mb-1">Your Request:</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground whitespace-pre-wrap">{approach.message}</p>
                   </div>
                   {approach.media_url && (
                     <div>
                       {approach.media_type === 'image' ? (
-                        <img
-                          src={approach.media_url}
-                          alt="Attached media"
-                          className="rounded-lg max-w-full h-auto max-h-64 object-cover"
-                        />
+                        <img src={approach.media_url} alt="Attached" className="rounded-lg max-w-full h-auto max-h-48 sm:max-h-64 object-cover" />
                       ) : (
-                        <video
-                          src={approach.media_url}
-                          controls
-                          className="rounded-lg max-w-full h-auto max-h-64"
-                        />
+                        <video src={approach.media_url} controls className="rounded-lg max-w-full h-auto max-h-48 sm:max-h-64" />
                       )}
                     </div>
                   )}
                   {approach.admin_response && (
-                    <div className="border-t pt-4">
-                      <p className="text-sm font-medium mb-1 text-primary">Barangay Response:</p>
-                      <p className="text-sm whitespace-pre-wrap">{approach.admin_response}</p>
+                    <div className="border-t pt-3">
+                      <p className="text-xs font-medium mb-1 text-primary">Barangay Response:</p>
+                      <p className="text-xs sm:text-sm whitespace-pre-wrap">{approach.admin_response}</p>
                     </div>
                   )}
                   {!approach.admin_response && approach.status === 'open' && (
-                    <p className="text-sm text-muted-foreground italic">
-                      Waiting for barangay officials to respond...
-                    </p>
+                    <p className="text-xs sm:text-sm text-muted-foreground italic">Waiting for response...</p>
                   )}
                   <ApproachConversation approachId={approach.id} currentUserId={user.id} />
                 </CardContent>

@@ -267,37 +267,136 @@ const Messages = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 pb-20 md:pb-8">
       <header className="bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#2ec2b3] flex items-center gap-2 sm:gap-3">
-              <MessageCircle className="h-6 w-6 sm:h-8 sm:w-8" /> Messages
+            <h1 className="text-lg sm:text-2xl font-bold text-[#2ec2b3] flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 sm:h-7 sm:w-7" />
+              <span className="hidden sm:inline">Messages</span>
             </h1>
           </div>
-          <Button onClick={() => navigate('/friends')} className="bg-[#2ec2b3] hover:bg-[#28a399] text-sm sm:text-base">
-            <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" /> Manage Friends
+          <Button onClick={() => navigate('/friends')} size="sm" className="bg-[#2ec2b3] hover:bg-[#28a399] text-xs sm:text-sm">
+            <UserPlus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Manage Friends</span>
           </Button>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
-        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 h-[calc(100vh-140px)] sm:h-[calc(100vh-160px)]">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-3 sm:py-6">
+        {/* Mobile: Show friends list or chat */}
+        <div className="lg:hidden">
+          {!selectedFriend ? (
+            <Card className="bg-white rounded-xl shadow-md overflow-hidden">
+              <div className="p-3 bg-gradient-to-r from-[#2ec2b3]/10 to-cyan-50 border-b">
+                <h3 className="font-semibold text-[#2ec2b3] text-sm">Select a chat</h3>
+              </div>
+              <div className="divide-y">
+                {friends.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No friends yet</p>
+                  </div>
+                ) : (
+                  friends.map(friend => (
+                    <button
+                      key={friend.id}
+                      onClick={() => setSelectedFriend(friend)}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-teal-50 transition-colors text-left"
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={friend.profiles.avatar_url || ''} />
+                        <AvatarFallback className="bg-[#2ec2b3] text-white text-sm">{friend.profiles.full_name[0]}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-sm">{friend.profiles.full_name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </Card>
+          ) : (
+            <Card className="bg-white rounded-xl shadow-md flex flex-col h-[calc(100vh-140px)] overflow-hidden">
+              <div className="border-b p-3 flex items-center justify-between bg-gradient-to-r from-[#2ec2b3]/5 to-white">
+                <div className="flex items-center gap-3">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedFriend(null)}>
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={selectedFriend.profiles.avatar_url || ''} />
+                    <AvatarFallback className="bg-[#2ec2b3] text-white text-sm">{selectedFriend.profiles.full_name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-sm">{selectedFriend.profiles.full_name}</p>
+                    <Badge className="bg-green-100 text-green-700 text-[10px] px-1.5 py-0">Online</Badge>
+                  </div>
+                </div>
+                <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setVideoCallOpen(true)}>
+                  <VideoIcon className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <VideoCallDialog open={videoCallOpen} onOpenChange={setVideoCallOpen} friendName={selectedFriend.profiles.full_name} />
+
+              <ScrollArea className="flex-1 p-3">
+                <div className="space-y-2">
+                  {messages.map((msg, idx) => (
+                    <div key={`${msg.id}-${idx}`} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] rounded-2xl p-3 shadow-sm ${msg.sender_id === user?.id ? 'bg-[#2ec2b3] text-white' : 'bg-gray-100 text-gray-800'}`}>
+                        {msg.media_url && (
+                          <div className="mb-2 rounded-lg overflow-hidden">
+                            {msg.media_type === 'image' ? <img src={msg.media_url} className="rounded-lg max-w-full" /> : <video src={msg.media_url} controls className="rounded-lg max-w-full" />}
+                          </div>
+                        )}
+                        {msg.content && <p className="break-words text-sm">{msg.content}</p>}
+                        <div className="flex items-center gap-1.5 mt-1 text-[10px] opacity-70">
+                          <span>{formatTime(msg.created_at)}</span>
+                          {msg.sender_id === user?.id && <span className="flex items-center">{getMessageStatus(msg)}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+
+              <div className="border-t bg-gray-50 p-2">
+                {mediaFile && (
+                  <div className="mb-2 bg-white p-2 rounded-lg flex items-center gap-2 text-xs">
+                    {mediaFile.type.startsWith('image/') ? <ImageIcon className="h-4 w-4 text-[#2ec2b3]" /> : <VideoIcon className="h-4 w-4 text-[#2ec2b3]" />}
+                    <span className="flex-1 truncate">{mediaFile.name}</span>
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setMediaFile(null); fileInputRef.current && (fileInputRef.current.value = ''); }}>×</Button>
+                  </div>
+                )}
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={e => e.target.files?.[0] && setMediaFile(e.target.files[0])} className="hidden" />
+                  <Button size="icon" variant="outline" className="h-9 w-9 flex-shrink-0" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                    <ImageIcon className="h-4 w-4" />
+                  </Button>
+                  <Input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Message..." className="flex-1 h-9 text-sm" disabled={isUploading} />
+                  <Button type="submit" size="icon" className="h-9 w-9 bg-[#2ec2b3] hover:bg-[#28a399] flex-shrink-0" disabled={!newMessage.trim() && !mediaFile}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Desktop: Side-by-side layout */}
+        <div className="hidden lg:grid lg:grid-cols-4 gap-6 h-[calc(100vh-140px)]">
           {/* Friends List */}
           <Card className="lg:col-span-1 bg-white/90 rounded-2xl shadow-lg flex flex-col overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-[#2ec2b3]/10 to-cyan-50">
+            <div className="p-4 bg-gradient-to-r from-[#2ec2b3]/10 to-cyan-50 border-b">
               <h3 className="font-semibold text-[#2ec2b3]">Chats</h3>
-            </CardHeader>
+            </div>
             <ScrollArea className="flex-1">
               <div className="p-3 space-y-2">
                 {friends.map(friend => (
                   <button
                     key={friend.id}
                     onClick={() => setSelectedFriend(friend)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
-                      selectedFriend?.id === friend.id ? 'bg-[#2ec2b3] text-white' : 'hover:bg-teal-50'
-                    }`}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${selectedFriend?.id === friend.id ? 'bg-[#2ec2b3] text-white' : 'hover:bg-teal-50'}`}
                   >
                     <Avatar>
                       <AvatarImage src={friend.profiles.avatar_url || ''} />

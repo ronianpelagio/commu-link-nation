@@ -144,49 +144,74 @@ const CommunityFeed = () => {
       setIsPosting(false);
     }
   };
-  return <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">News Feed</h2>
-        <button onClick={() => setShowNewPost(!showNewPost)} className="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-4 py-2 shadow-md">
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-lg sm:text-2xl font-bold">News Feed</h2>
+        <button 
+          onClick={() => setShowNewPost(!showNewPost)} 
+          className="inline-flex items-center gap-1.5 sm:gap-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg px-3 sm:px-4 py-2 shadow-md text-sm"
+        >
           <Plus className="h-4 w-4" />
-          {showNewPost ? 'Cancel' : 'New Post'}
+          <span className="hidden sm:inline">{showNewPost ? 'Cancel' : 'New Post'}</span>
+          <span className="sm:hidden">{showNewPost ? 'Cancel' : 'Post'}</span>
         </button>
       </div>
 
-      {showNewPost && <Card className="shadow-soft">
-          <CardContent className="space-y-4">
-            <Textarea placeholder="Share something with your community..." value={newPost} onChange={e => setNewPost(e.target.value)} className="min-h-[100px] rounded-lg" />
+      {showNewPost && (
+        <Card className="shadow-soft">
+          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6">
+            <Textarea 
+              placeholder="Share something with your community..." 
+              value={newPost} 
+              onChange={e => setNewPost(e.target.value)} 
+              className="min-h-[80px] sm:min-h-[100px] rounded-lg text-sm" 
+            />
             <div className="space-y-2">
-              <Label>Attach Media (optional)</Label>
+              <Label className="text-xs sm:text-sm">Attach Media (optional)</Label>
               <div className="flex gap-2">
                 <Input id="media" type="file" accept="image/*,video/*" onChange={handleFileSelect} className="hidden" />
                 <Label htmlFor="media" className="cursor-pointer flex-1">
-                  <Button type="button" variant="outline" className="w-full" asChild>
+                  <Button type="button" variant="outline" className="w-full text-xs sm:text-sm" asChild>
                     <span>
-                      {mediaFile?.type.startsWith('video/') ? <Video className="h-4 w-4 mr-2" /> : <Image className="h-4 w-4 mr-2" />}
-                      {mediaFile ? mediaFile.name : 'Attach Image/Video'}
+                      {mediaFile?.type.startsWith('video/') ? <Video className="h-4 w-4 mr-1 sm:mr-2" /> : <Image className="h-4 w-4 mr-1 sm:mr-2" />}
+                      <span className="truncate">{mediaFile ? mediaFile.name : 'Attach Media'}</span>
                     </span>
                   </Button>
                 </Label>
-                {mediaFile && <Button type="button" variant="outline" onClick={() => setMediaFile(null)}>
+                {mediaFile && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setMediaFile(null)}>
                     Clear
-                  </Button>}
+                  </Button>
+                )}
               </div>
             </div>
-            <Button onClick={handleCreatePost} disabled={isPosting || !newPost.trim()} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
+            <Button 
+              onClick={handleCreatePost} 
+              disabled={isPosting || !newPost.trim()} 
+              className="w-full bg-cyan-600 hover:bg-cyan-700 text-white text-sm"
+            >
               {isPosting ? 'Posting...' : 'Post'}
             </Button>
-            <p className="text-sm text-muted-foreground">Your post will be reviewed by barangay officials before appearing in the feed.</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Your post will be reviewed before appearing in the feed.
+            </p>
           </CardContent>
-        </Card>}
+        </Card>
+      )}
 
-      <div className="space-y-4">
-        {posts.length === 0 ? <Card className="shadow-soft">
-            <CardContent className="py-12 text-center text-muted-foreground">
-              <p>No posts yet. Be the first to share something!</p>
+      <div className="space-y-3 sm:space-y-4">
+        {posts.length === 0 ? (
+          <Card className="shadow-soft">
+            <CardContent className="py-8 sm:py-12 text-center text-muted-foreground">
+              <p className="text-sm">No posts yet. Be the first to share something!</p>
             </CardContent>
-          </Card> : posts.map(post => <PostCard key={post.id} post={post} currentUserId={user?.id || ''} />)}
+          </Card>
+        ) : (
+          posts.map(post => <PostCard key={post.id} post={post} currentUserId={user?.id || ''} />)
+        )}
       </div>
-    </div>;
+    </div>
+  );
 };
 export default CommunityFeed;

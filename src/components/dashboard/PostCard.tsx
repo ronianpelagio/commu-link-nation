@@ -118,31 +118,29 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
   };
 
   return (
-    <Card className="shadow-soft rounded-lg">
-      <CardHeader>
+    <Card className="shadow-soft rounded-xl overflow-hidden">
+      <CardHeader className="p-3 sm:p-4">
         <div className="flex items-start justify-between w-full">
-          <div className="flex items-center gap-3">
-            <Avatar>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Avatar className="h-9 w-9 sm:h-10 sm:w-10">
               <AvatarImage src={post.profiles.avatar_url || ''} />
-              <AvatarFallback>{post.profiles.full_name[0]}</AvatarFallback>
+              <AvatarFallback className="text-sm">{post.profiles.full_name[0]}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-semibold">{post.profiles.full_name}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="font-semibold text-sm sm:text-base">{post.profiles.full_name}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
               </p>
             </div>
           </div>
 
-          <div className="text-muted-foreground">
-            <button aria-label="More options" className="p-2 rounded-full hover:bg-slate-100">
-              <MoreVertical className="h-5 w-5" />
-            </button>
-          </div>
+          <button aria-label="More options" className="p-1.5 sm:p-2 rounded-full hover:bg-slate-100 text-muted-foreground">
+            <MoreVertical className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-4 pt-0 sm:pt-0">
         <p className="text-sm leading-relaxed">{post.content}</p>
 
         {post.image_url && (
@@ -153,46 +151,44 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
           )
         )}
 
-        <div className="flex items-center justify-between pt-3 border-t">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between pt-2 sm:pt-3 border-t">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               onClick={handleLike}
-              className={`inline-flex items-center gap-2 text-sm ${hasLiked ? 'text-red-500' : 'text-muted-foreground'}`}
+              className={`inline-flex items-center gap-1.5 text-sm ${hasLiked ? 'text-red-500' : 'text-muted-foreground'}`}
             >
-              <Heart className={`h-5 w-5 ${hasLiked ? 'fill-current' : ''}`} />
-              <span className="font-medium">{likes.length}</span>
+              <Heart className={`h-4 w-4 sm:h-5 sm:w-5 ${hasLiked ? 'fill-current' : ''}`} />
+              <span className="font-medium text-xs sm:text-sm">{likes.length}</span>
             </button>
 
             <button
               onClick={() => setShowComments(!showComments)}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
             >
-              <MessageCircle className="h-5 w-5" />
-              <span className="font-medium">{comments.length}</span>
+              <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="font-medium text-xs sm:text-sm">{comments.length}</span>
             </button>
           </div>
 
-          <div>
-            <button
-              onClick={() => setShowComments(true)}
-              className="bg-cyan-50 text-cyan-700 px-3 py-1 rounded-md text-sm font-medium"
-            >
-              Comment
-            </button>
-          </div>
+          <button
+            onClick={() => setShowComments(true)}
+            className="bg-cyan-50 text-cyan-700 px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-medium"
+          >
+            Comment
+          </button>
         </div>
 
         {showComments && (
-          <div className="space-y-3 pt-3 border-t">
+          <div className="space-y-2 sm:space-y-3 pt-2 sm:pt-3 border-t">
             {comments.map((comment) => (
               <div key={comment.id} className="flex gap-2">
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0">
                   <AvatarImage src={comment.profiles.avatar_url || ''} />
-                  <AvatarFallback>{comment.profiles.full_name[0]}</AvatarFallback>
+                  <AvatarFallback className="text-xs">{comment.profiles.full_name[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 bg-secondary rounded-lg p-2">
-                  <p className="text-sm font-semibold">{comment.profiles.full_name}</p>
-                  <p className="text-sm">{comment.content}</p>
+                  <p className="text-xs sm:text-sm font-semibold">{comment.profiles.full_name}</p>
+                  <p className="text-xs sm:text-sm">{comment.content}</p>
                 </div>
               </div>
             ))}
@@ -201,6 +197,7 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Write a comment..."
+                className="text-sm h-9"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -208,7 +205,7 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
                   }
                 }}
               />
-              <Button onClick={handleComment}>Post</Button>
+              <Button onClick={handleComment} size="sm" className="h-9">Post</Button>
             </div>
           </div>
         )}
