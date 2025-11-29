@@ -42,8 +42,10 @@ const Dashboard = () => {
   const navItems = [
     { icon: Home, label: 'Home', path: '/', active: true },
     { icon: ClipboardList, label: 'Tasks', path: '/tasks' },
-    { icon: MessageCircle, label: 'Messages', path: '/messages' },
-    { icon: Phone, label: 'Contact Barangay', path: '/direct-approach' },
+    ...(!isAdmin ? [
+      { icon: MessageCircle, label: 'Messages', path: '/messages' },
+      { icon: Phone, label: 'Contact Barangay', path: '/direct-approach' },
+    ] : []),
     { icon: User, label: 'Profile', path: '/profile' },
   ];
 
@@ -53,11 +55,13 @@ const Dashboard = () => {
       <header className="bg-white/95 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#2ec2b3]">
-              Community Match
+            {/* Mobile Logo Only */}
+            <h1 className="text-2xl sm:text-2xl md:text-3xl font-bold text-[#2ec2b3] md:block">
+              <span className="hidden sm:inline">Community Match</span>
+              <span className="sm:hidden">CM</span>
             </h1>
 
-            {/* Top Right Nav */}
+            {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (
                 <Button
@@ -98,15 +102,49 @@ const Dashboard = () => {
               </Button>
             </nav>
 
-            {/* Mobile menu placeholder */}
-            <div className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+            {/* Mobile Nav - Icon Only */}
+            <div className="md:hidden flex items-center gap-2">
+              <NotificationBell />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSignOutDialog(true)}
+              >
+                <LogOut className="h-5 w-5" />
               </Button>
             </div>
           </div>
+
+          {/* Mobile Bottom Nav */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 pb-safe">
+            <div className="flex items-center justify-around py-2">
+              {navItems.map((item) => (
+                <Button
+                  key={item.label}
+                  variant="ghost"
+                  size="icon"
+                  className={`flex flex-col gap-1 h-auto py-2 ${
+                    item.active ? 'text-[#2ec2b3]' : 'text-gray-600'
+                  }`}
+                  onClick={() => item.path && navigate(item.path)}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="text-[10px]">{item.label}</span>
+                </Button>
+              ))}
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="flex flex-col gap-1 h-auto py-2 text-gray-600"
+                  onClick={() => navigate('/admin')}
+                >
+                  <Shield className="h-5 w-5" />
+                  <span className="text-[10px]">Admin</span>
+                </Button>
+              )}
+            </div>
+          </nav>
         </div>
       </header>
 
@@ -117,7 +155,7 @@ const Dashboard = () => {
       />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 pb-24 md:pb-10">
         {/* Welcome Hero */}
         <div className="mb-6 sm:mb-10">
           <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-8 md:p-12 overflow-hidden relative">

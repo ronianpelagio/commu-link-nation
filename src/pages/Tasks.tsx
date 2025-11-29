@@ -110,6 +110,7 @@ const Tasks = () => {
         *,
         profiles!tasks_creator_id_fkey (full_name)
       `)
+      .neq('status', 'completed')
       .order('created_at', { ascending: false });
 
     if (error) return console.error(error);
@@ -312,7 +313,7 @@ const Tasks = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 pb-20 md:pb-8">
       {/* Top Bar */}
       <header className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">

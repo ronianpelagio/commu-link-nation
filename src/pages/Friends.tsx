@@ -248,11 +248,11 @@ const Friends = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50 pb-20 md:pb-8">
       {/* Top Navigation */}
       <header className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -262,8 +262,8 @@ const Friends = () => {
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-3xl font-bold text-[#2ec2b3] flex items-center gap-3">
-                <Users className="h-8 w-8" />
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#2ec2b3] flex items-center gap-2 sm:gap-3">
+                <Users className="h-6 w-6 sm:h-8 sm:w-8" />
                 Friends
               </h1>
             </div>
@@ -271,7 +271,7 @@ const Friends = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
         {/* People You May Know */}
         {suggestions.length > 0 && (
           <Card className="mb-8 border border-[#2ec2b3]/20 bg-gradient-to-r from-teal-50/50 to-cyan-50/50">

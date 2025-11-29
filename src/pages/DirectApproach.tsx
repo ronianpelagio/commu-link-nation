@@ -200,15 +200,15 @@ const DirectApproach = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <div className="min-h-screen bg-gradient-subtle pb-20 md:pb-8">
       <header className="bg-background border-b shadow-soft">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-2xl font-bold">Direct Approach to Barangay</h1>
+              <h1 className="text-lg sm:text-2xl font-bold">Direct Approach to Barangay</h1>
             </div>
             <Button onClick={() => setShowForm(!showForm)}>
               <Send className="h-4 w-4 mr-2" />
@@ -218,7 +218,7 @@ const DirectApproach = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl">
         {showForm && (
           <Card className="mb-6 shadow-soft">
             <CardHeader>
